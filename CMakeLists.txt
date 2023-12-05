@@ -3,7 +3,10 @@ project(ScorchV)
 
 set(CMAKE_CXX_STANDARD 23)
 set(ignoreMe "${FOO}${BAZ}${BAR}")
-set(SOURCE_FILES src/main.cpp)
+set(SOURCE_FILES src/main.cpp
+        src/ScorchVkEngine/ScorchV.cpp
+        src/ScorchVkEngine/ScorchV.cpp
+        src/ScorchVkEngine/ScorchV.h)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4099")
