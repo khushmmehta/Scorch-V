@@ -1,0 +1,17 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="ClangTidy" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="CppDFAConstantParameter" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="CppDFAUnreachableCode" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="CppIfCanBeReplacedByConstexprIf" enabled="false" level="WEAK WARNING" enabled_by_default="false" />
+    <inspection_tool class="CppMemberFunctionMayBeConst" enabled="false" level="WEAK WARNING" enabled_by_default="false" />
+    <inspection_tool class="CppParameterMayBeConst" enabled="false" level="HINT" enabled_by_default="false" />
+    <inspection_tool class="CppRedundantBooleanExpressionArgument" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="CppTemplateArgumentsCanBeDeduced" enabled="false" level="HINT" enabled_by_default="false" />
+    <inspection_tool class="CppTooWideScope" enabled="false" level="WEAK WARNING" enabled_by_default="false" />
+    <inspection_tool class="CppTooWideScopeInitStatement" enabled="false" level="HINT" enabled_by_default="false" />
+    <inspection_tool class="CppUseStructuredBinding" enabled="false" level="HINT" enabled_by_default="false" />
+    <inspection_tool class="IfStdIsConstantEvaluatedCanBeReplaced" enabled="true" level="WEAK WARNING" enabled_by_default="true" editorAttributes="INFO_ATTRIBUTES" />
+  </profile>
+</component>

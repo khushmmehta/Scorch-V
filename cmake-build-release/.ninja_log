@@ -1,0 +1,4 @@
+# ninja log v5
+14	18698	7234307015409384	CMakeFiles/ScorchV.dir/src/main.cpp.obj	8937d4e23f7f382
+18700	19525	7234307024340923	ScorchV.exe	766fb55fd5516942
+334	57238	7234100894814524	CMakeFiles/ScorchV.dir/src/vendor/fmt/format.cc.obj	4a609fcf04c4beb9
