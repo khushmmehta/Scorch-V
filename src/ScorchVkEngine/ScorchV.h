@@ -10,29 +10,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-const std::vector<const char*> validationLayers = {
-    "VK_LAYER_KHRONOS_validation"
-};
+#include "ValidationLayers.h"
 
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
-#ifdef NDEBUG
-constexpr bool enableValidationLayers = false;
-#else
-constexpr bool enableValidationLayers = true;
-#endif
-
-VkResult CreateDebugUtilsMessengerEXT(
-    VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkDebugUtilsMessengerEXT* pDebugMessenger);
-
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 
 struct QueueFamilyIndices
 {
@@ -116,7 +100,7 @@ private:
     GLFWwindow* window{};
 
     VkInstance instance{};
-    VkDebugUtilsMessengerEXT debugMessenger{};
+    ValidationLayers vLayers;
     VkSurfaceKHR surface{};
 
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -171,7 +155,7 @@ private:
     void initVulkan()
     {
         createInstance();
-        setupDebugMessenger();
+        vLayers.setupDebugMessenger(instance);
         createSurface();
         pickPhysicalDevice();
         createLogicalDevice();
@@ -199,8 +183,6 @@ private:
 
     void recreateSwapChain();
     void createInstance();
-    static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
-    void setupDebugMessenger();
     void createSurface();
     void pickPhysicalDevice();
     void createLogicalDevice();
@@ -260,13 +242,5 @@ private:
     bool isDeviceSuitable(VkPhysicalDevice device) const;
     static bool checkDeviceExtensionSupport(VkPhysicalDevice device);
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
-    static std::vector<const char*> getRequiredExtensions();
-    static bool checkValidationLayerSupport();
     static std::vector<char> readFile(const std::string& filename);
-
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT msgType,
-        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        void* pUserData);
 };
