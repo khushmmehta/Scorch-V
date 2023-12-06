@@ -7,7 +7,9 @@ set(SOURCE_FILES src/main.cpp
         src/ScorchVkEngine/ScorchV.cpp
         src/ScorchVkEngine/ScorchV.h
         src/ScorchVkEngine/Abstractions/ValidationLayers.cpp
-        src/ScorchVkEngine/Abstractions/ValidationLayers.h)
+        src/ScorchVkEngine/Abstractions/ValidationLayers.h
+        src/ScorchVkEngine/Abstractions/VulkanMemoryAllocator.cpp
+        src/ScorchVkEngine/Abstractions/VulkanMemoryAllocator.h)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4099")
@@ -24,6 +26,7 @@ find_package(Vulkan REQUIRED)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES})
+
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan glfw3 User32 Gdi32 Shell32 ucrtd)

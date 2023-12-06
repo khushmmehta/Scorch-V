@@ -11,6 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <Abstractions/ValidationLayers.h>
+#include <Abstractions/VulkanMemoryAllocator.h>
 
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -127,13 +128,15 @@ private:
     VkCommandPool commandPool{};
     VkCommandPool secondaryCommandPool{};
 
+    VulkanMemoryAllocator VMA;
+
     VkBuffer vertexBuffer{};
-    VkDeviceMemory vertexBufferMemory{};
+    VmaAllocation vertexBufferMemory{};
     VkBuffer indexBuffer{};
-    VkDeviceMemory indexBufferMemory{};
+    VmaAllocation indexBufferMemory{};
 
     std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<VmaAllocation> uniformBuffersAllocation;
     std::vector<void*> uniformBuffersMapped;
 
     VkDescriptorPool descriptorPool{};
@@ -167,6 +170,7 @@ private:
         createFramebuffers();
         createCommandPool();
         createSecondaryCommandPool();
+        VMA.createAllocator(physicalDevice, device, instance);
         createVertexBuffer();
         createIndexBuffer();
         createUniformBuffers();
@@ -196,25 +200,25 @@ private:
     void createSecondaryCommandPool();
 
     template <typename T>
-    void createVkBuffer(const std::vector<T>& data, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkBufferUsageFlags usage)
+    void createVkBuffer(const std::vector<T>& data, VkBuffer& buffer, VmaAllocation& bufferAllocation, VkBufferUsageFlags usage)
     {
         const VkDeviceSize bufferSize = sizeof(data[0]) * data.size();
 
         VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+        VmaAllocation stagingBufferAllocation;
+        VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferAllocation);
 
         void* bufferData;
-        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &bufferData);
+        vmaMapMemory(VMA.allocator, stagingBufferAllocation, &bufferData);
         memcpy(bufferData, data.data(), bufferSize);
-        vkUnmapMemory(device, stagingBufferMemory);
+        vmaUnmapMemory(VMA.allocator, stagingBufferAllocation);
 
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferMemory);
+        VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferAllocation);
 
-        copyBuffer(stagingBuffer, buffer, bufferSize);
+        VMA.copyBuffer(device, secondaryCommandPool, graphicsQueue, stagingBuffer, buffer, bufferSize);
 
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
+        vmaFlushAllocation(VMA.allocator, stagingBufferAllocation, 0, data.size());
+        vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
     }
 
     void createVertexBuffer();
@@ -222,11 +226,6 @@ private:
     void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
-
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
     void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;

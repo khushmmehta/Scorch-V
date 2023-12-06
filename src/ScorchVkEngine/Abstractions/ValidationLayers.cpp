@@ -4,6 +4,26 @@
 #include <GLFW/glfw3.h>
 #include <fmt/core.h>
 
+VkResult CreateDebugUtilsMessengerEXT(
+    VkInstance instance,
+    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkDebugUtilsMessengerEXT* pDebugMessenger)
+{
+    const auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+
+    if (func != nullptr) return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+
+    return  VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+{
+    const auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+
+    if (func != nullptr) func(instance, debugMessenger, pAllocator);
+}
+
 void ValidationLayers::passDebugDataToInstance(VkInstanceCreateInfo& createInfo)
 {
     extensions = getRequiredExtensions();
@@ -95,6 +115,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL ValidationLayers::debugCallback(
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData)
 {
-    fmt::print(err, "Validation Layer: {}", pCallbackData->pMessage);
+    fmt::print(err, "Validation Layer: {}\n", pCallbackData->pMessage);
     return VK_FALSE;
 }

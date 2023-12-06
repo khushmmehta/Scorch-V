@@ -11,14 +11,6 @@ constexpr bool vLEnabled = false;
 constexpr bool vLEnabled = true;
 #endif
 
-VkResult CreateDebugUtilsMessengerEXT(
-    VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkDebugUtilsMessengerEXT* pDebugMessenger);
-
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
-
 class ValidationLayers {
 public:
     const std::vector<const char*> validationLayers = {
