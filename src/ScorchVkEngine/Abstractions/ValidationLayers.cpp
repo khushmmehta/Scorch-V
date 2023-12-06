@@ -1,6 +1,8 @@
+#define FMT_HEADER_ONLY
 #include "ValidationLayers.h"
+
 #include <GLFW/glfw3.h>
-#include <iostream>
+#include <fmt/core.h>
 
 void ValidationLayers::passDebugDataToInstance(VkInstanceCreateInfo& createInfo)
 {
@@ -93,6 +95,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL ValidationLayers::debugCallback(
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData)
 {
-    std::cerr << "Validation Layer: " << pCallbackData->pMessage << std::endl;
+    fmt::print(err, "Validation Layer: {}", pCallbackData->pMessage);
     return VK_FALSE;
 }

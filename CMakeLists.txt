@@ -6,8 +6,8 @@ set(ignoreMe "${FOO}${BAZ}${BAR}")
 set(SOURCE_FILES src/main.cpp
         src/ScorchVkEngine/ScorchV.cpp
         src/ScorchVkEngine/ScorchV.h
-        src/ScorchVkEngine/ValidationLayers.cpp
-        src/ScorchVkEngine/ValidationLayers.h)
+        src/ScorchVkEngine/Abstractions/ValidationLayers.cpp
+        src/ScorchVkEngine/Abstractions/ValidationLayers.h)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4099")
@@ -15,6 +15,7 @@ set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /ignore:4099")
 
 include_directories(GLFW)
 include_directories(GLFW/include)
+include_directories(src/ScorchVkEngine)
 include_directories(src/vendor)
 link_directories(GLFW/lib)
 

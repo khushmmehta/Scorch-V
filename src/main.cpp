@@ -1,13 +1,14 @@
-#include <iostream>
-#include "ScorchVkEngine/ScorchV.h"
+#define FMT_HEADER_ONLY
+#include <fmt/core.h>
+#include <ScorchV.h>
 
 int main() {
     ScorchV app;
 
     try { app.run(); }
-    catch (const std::exception& e) { std::cerr << e.what() << std::endl; return EXIT_FAILURE; }
+    catch (const std::exception& e) { fmt::print(err, "{}", e.what()); return EXIT_FAILURE; }
 
-    std::cin.get();
+    getchar();
 
     return EXIT_SUCCESS;
 }
