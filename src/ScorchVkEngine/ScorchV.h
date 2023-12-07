@@ -11,28 +11,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <Abstractions/ValidationLayers.h>
+#include <Abstractions/DeviceManager.h>
 #include <Abstractions/VulkanMemoryAllocator.h>
 
-const std::vector<const char*> deviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
-
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
-struct QueueFamilyIndices
-{
-    std::optional<uint32_t> graphicsFamily;
-    std::optional<uint32_t> presentFamily;
-
-    bool isComplete() const { return graphicsFamily.has_value() && presentFamily.has_value(); }
-};
-
-struct SwapChainSupportDetails
-{
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
-};
 
 struct Vertex
 {
@@ -104,8 +86,8 @@ private:
     ValidationLayers vLayers;
     VkSurfaceKHR surface{};
 
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device{};
+    DeviceManager devMan{surface};
+    QueueFamilyIndices _indices;
 
     VkQueue graphicsQueue{};
     VkQueue presentQueue{};
@@ -125,8 +107,7 @@ private:
 
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
-    VkCommandPool commandPool{};
-    VkCommandPool secondaryCommandPool{};
+    std::vector<VkCommandPool> commandPools{};
 
     VulkanMemoryAllocator VMA;
 
@@ -160,17 +141,15 @@ private:
         createInstance();
         vLayers.setupDebugMessenger(instance);
         createSurface();
-        pickPhysicalDevice();
-        createLogicalDevice();
+        devMan.setUpDevices(instance, vLayers, graphicsQueue, presentQueue);
         createSwapChain();
         createImageViews();
         createRenderPass();
         createDescriptorSetLayout();
         createGraphicsPipeline();
         createFramebuffers();
-        createCommandPool();
-        createSecondaryCommandPool();
-        VMA.createAllocator(physicalDevice, device, instance);
+        createCommandPools();
+        VMA.createAllocator(devMan.physicalDevice, devMan.device, instance);
         createVertexBuffer();
         createIndexBuffer();
         createUniformBuffers();
@@ -188,16 +167,26 @@ private:
     void recreateSwapChain();
     void createInstance();
     void createSurface();
-    void pickPhysicalDevice();
-    void createLogicalDevice();
     void createSwapChain();
     void createImageViews();
     void createRenderPass();
     void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createFramebuffers();
-    void createCommandPool();
-    void createSecondaryCommandPool();
+    void createCommandPools();
+
+    void createVkCommandPool(VkCommandPool& commandPool, VkCommandPoolCreateFlags flags)
+    {
+        const QueueFamilyIndices queueFamilyIndices = devMan.findQueueFamilies(devMan.physicalDevice);
+
+        VkCommandPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.flags = flags;
+        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+        if (vkCreateCommandPool(devMan.device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+            throw std::runtime_error("Failed to create the command pool!");
+    }
 
     template <typename T>
     void createVkBuffer(const std::vector<T>& data, VkBuffer& buffer, VmaAllocation& bufferAllocation, VkBufferUsageFlags usage)
@@ -215,7 +204,7 @@ private:
 
         VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferAllocation);
 
-        VMA.copyBuffer(device, secondaryCommandPool, graphicsQueue, stagingBuffer, buffer, bufferSize);
+        VMA.copyBuffer(devMan.device, commandPools[0], graphicsQueue, stagingBuffer, buffer, bufferSize);
 
         vmaFlushAllocation(VMA.allocator, stagingBufferAllocation, 0, data.size());
         vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
@@ -237,9 +226,5 @@ private:
     static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
-    bool isDeviceSuitable(VkPhysicalDevice device) const;
-    static bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
     static std::vector<char> readFile(const std::string& filename);
 };

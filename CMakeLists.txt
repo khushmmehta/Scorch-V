@@ -9,7 +9,9 @@ set(SOURCE_FILES src/main.cpp
         src/ScorchVkEngine/Abstractions/ValidationLayers.cpp
         src/ScorchVkEngine/Abstractions/ValidationLayers.h
         src/ScorchVkEngine/Abstractions/VulkanMemoryAllocator.cpp
-        src/ScorchVkEngine/Abstractions/VulkanMemoryAllocator.h)
+        src/ScorchVkEngine/Abstractions/VulkanMemoryAllocator.h
+        src/ScorchVkEngine/Abstractions/DeviceManager.cpp
+        src/ScorchVkEngine/Abstractions/DeviceManager.h)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4099")

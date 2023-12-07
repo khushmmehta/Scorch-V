@@ -1,7 +1,6 @@
 #include "ScorchV.h"
 
 #include <stdexcept>
-#include <set>
 #include <algorithm>
 #include <fstream>
 
@@ -35,14 +34,14 @@ void ScorchV::mainLoop()
         drawFrame();
     }
 
-    vkDeviceWaitIdle(device);
+    vkDeviceWaitIdle(devMan.device);
 }
 
 void ScorchV::cleanupSwapChain()
 {
-    for (const auto framebuffer : swapChainFramebuffers)  { vkDestroyFramebuffer(device, framebuffer, nullptr); }
-    for (const auto imageView: swapChainImageViews) { vkDestroyImageView(device, imageView, nullptr); }
-    vkDestroySwapchainKHR(device, swapChain, nullptr);
+    for (const auto framebuffer : swapChainFramebuffers)  { vkDestroyFramebuffer(devMan.device, framebuffer, nullptr); }
+    for (const auto imageView: swapChainImageViews) { vkDestroyImageView(devMan.device, imageView, nullptr); }
+    vkDestroySwapchainKHR(devMan.device, swapChain, nullptr);
 }
 
 void ScorchV::cleanup()
@@ -55,30 +54,30 @@ void ScorchV::cleanup()
         vmaDestroyBuffer(VMA.allocator, uniformBuffers[i], uniformBuffersAllocation[i]);
     }
 
-    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    vkDestroyDescriptorPool(devMan.device, descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(devMan.device, descriptorSetLayout, nullptr);
 
     vmaDestroyBuffer(VMA.allocator, indexBuffer, indexBufferMemory);
     vmaDestroyBuffer(VMA.allocator, vertexBuffer, vertexBufferMemory);
 
     vmaDestroyAllocator(VMA.allocator);
 
-    vkDestroyPipeline(device, graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    vkDestroyPipeline(devMan.device, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(devMan.device, pipelineLayout, nullptr);
 
-    vkDestroyRenderPass(device, renderPass, nullptr);
+    vkDestroyRenderPass(devMan.device, renderPass, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
-        vkDestroyFence(device, inFlightFences[i], nullptr);
+        vkDestroySemaphore(devMan.device, imageAvailableSemaphores[i], nullptr);
+        vkDestroySemaphore(devMan.device, renderFinishedSemaphores[i], nullptr);
+        vkDestroyFence(devMan.device, inFlightFences[i], nullptr);
     }
 
-    vkDestroyCommandPool(device, commandPool, nullptr);
-    vkDestroyCommandPool(device, secondaryCommandPool, nullptr);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        vkDestroyCommandPool(devMan.device, commandPools[i], nullptr);
 
-    vkDestroyDevice(device, nullptr);
+    devMan.destroyDevice();
 
     vLayers.destroyDebugMessenger(instance);
 
@@ -99,7 +98,7 @@ void ScorchV::recreateSwapChain()
         glfwWaitEvents();
     }
 
-    vkDeviceWaitIdle(device);
+    vkDeviceWaitIdle(devMan.device);
 
     createSwapChain();
     createImageViews();
@@ -113,7 +112,7 @@ void ScorchV::createInstance()
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Scorch-V";
-    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 4);
+    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 5);
     appInfo.pEngineName = "Scorch Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
@@ -134,74 +133,9 @@ void ScorchV::createSurface()
         throw std::runtime_error("Failed to create window surface!");
 }
 
-void ScorchV::pickPhysicalDevice()
-{
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-
-    if (deviceCount == 0) throw std::runtime_error("Failed to find GPUs with GLFW support!");
-
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
-
-    for (const auto& device : devices)
-    {
-        if (isDeviceSuitable(device))
-        {
-            physicalDevice = device;
-            break;
-        }
-    }
-
-    if (physicalDevice == VK_NULL_HANDLE) throw std::runtime_error("Failed to find a suitable GPU!");
-}
-
-void ScorchV::createLogicalDevice()
-{
-    const QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
-
-    constexpr float queuePriority = 1.0f;
-    for (uint32_t queueFamily : uniqueQueueFamilies){
-        VkDeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamily;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
-    }
-
-    constexpr VkPhysicalDeviceFeatures deviceFeatures{};
-
-    VkDeviceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
-    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-    createInfo.pQueueCreateInfos = queueCreateInfos.data();
-    createInfo.pEnabledFeatures = &deviceFeatures;
-
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-    if (vLayers.enableValidationLayers)
-    {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(vLayers.validationLayers.size());
-        createInfo.ppEnabledLayerNames = vLayers.validationLayers.data();
-    }
-    else createInfo.enabledLayerCount = 0;
-
-    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create logical device!");
-
-    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
-}
-
 void ScorchV::createSwapChain()
 {
-    const SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
+    const SwapChainSupportDetails swapChainSupport = devMan.swapChainSupport;
 
     const VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     const VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -223,10 +157,10 @@ void ScorchV::createSwapChain()
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    const QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-    const uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    _indices = devMan.findQueueFamilies(devMan.physicalDevice);
+    const uint32_t queueFamilyIndices[] = { _indices.graphicsFamily.value(), _indices.presentFamily.value() };
 
-    if (indices.graphicsFamily != indices.presentFamily)
+    if (_indices.graphicsFamily != _indices.presentFamily)
     {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
@@ -246,12 +180,12 @@ void ScorchV::createSwapChain()
 
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
+    if (vkCreateSwapchainKHR(devMan.device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
         throw std::runtime_error("Failed to create swap chain!");
 
-    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(devMan.device, swapChain, &imageCount, nullptr);
     swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+    vkGetSwapchainImagesKHR(devMan.device, swapChain, &imageCount, swapChainImages.data());
 
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
@@ -281,7 +215,7 @@ void ScorchV::createImageViews()
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount = 1;
 
-        if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS)
+        if (vkCreateImageView(devMan.device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS)
             throw std::runtime_error("Failed to create image views!");
     }
 }
@@ -324,7 +258,7 @@ void ScorchV::createRenderPass()
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
+    if (vkCreateRenderPass(devMan.device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
         throw std::runtime_error("Failed to create render pass!");
 }
 
@@ -342,7 +276,7 @@ void ScorchV::createDescriptorSetLayout()
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &uboLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
+    if (vkCreateDescriptorSetLayout(devMan.device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create a descriptor set layout!");
 }
 
@@ -443,7 +377,7 @@ void ScorchV::createGraphicsPipeline()
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(devMan.device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create pipeline layout!");
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -465,11 +399,11 @@ void ScorchV::createGraphicsPipeline()
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = -1;
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(devMan.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
         throw std::runtime_error("Failed to create graphics pipeline!");
 
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    vkDestroyShaderModule(devMan.device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(devMan.device, vertShaderModule, nullptr);
 }
 
 void ScorchV::createFramebuffers()
@@ -491,36 +425,16 @@ void ScorchV::createFramebuffers()
         frameBufferInfo.height = swapChainExtent.height;
         frameBufferInfo.layers = 1;
 
-        if (vkCreateFramebuffer(device, &frameBufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
+        if (vkCreateFramebuffer(devMan.device, &frameBufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
             throw std::runtime_error("Failed to create framebuffer!");
     }
 }
 
-void ScorchV::createCommandPool()
+void ScorchV::createCommandPools()
 {
-    const QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
-
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-
-    if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create the command pool!");
-
-}
-
-void ScorchV::createSecondaryCommandPool()
-{
-    const QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
-
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-
-    if (vkCreateCommandPool(device, &poolInfo, nullptr, &secondaryCommandPool) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create the secondary command pool!");
+    commandPools.resize(MAX_FRAMES_IN_FLIGHT);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        createVkCommandPool(commandPools[i], VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 }
 
 void ScorchV::createVertexBuffer()
@@ -560,7 +474,7 @@ void ScorchV::createDescriptorPool()
     poolInfo.pPoolSizes = &poolSize;
     poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+    if (vkCreateDescriptorPool(devMan.device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
         throw std::runtime_error("Failed to create a descriptor pool!");
 }
 
@@ -574,7 +488,7 @@ void ScorchV::createDescriptorSets()
     allocInfo.pSetLayouts = layouts.data();
 
     descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS)
+    if (vkAllocateDescriptorSets(devMan.device, &allocInfo, descriptorSets.data()) != VK_SUCCESS)
         throw std::runtime_error("Failed to allocate descriptor sets!");
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -593,7 +507,7 @@ void ScorchV::createDescriptorSets()
         descriptorWrite.descriptorCount = 1;
         descriptorWrite.pBufferInfo = &bufferInfo;
 
-        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+        vkUpdateDescriptorSets(devMan.device, 1, &descriptorWrite, 0, nullptr);
     }
 }
 
@@ -603,19 +517,23 @@ void ScorchV::createCommandBuffers()
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+    allocInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()) != VK_SUCCESS)
-        throw std::runtime_error("Failed to allocate command buffers!");
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        allocInfo.commandPool = commandPools[i];
+
+        if (vkAllocateCommandBuffers(devMan.device, &allocInfo, &commandBuffers[i]) != VK_SUCCESS)
+            throw std::runtime_error("Failed to allocate command buffers!");
+    }
 }
 
 void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) const
 {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     beginInfo.pInheritanceInfo = nullptr;
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
@@ -681,9 +599,9 @@ void ScorchV::createSyncObjects()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
+        if (vkCreateSemaphore(devMan.device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(devMan.device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(devMan.device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
             throw std::runtime_error("Failed to create semaphore and/or fences!");
     }
 }
@@ -705,10 +623,10 @@ void ScorchV::updateUniformBuffer(uint32_t currentImage)
 
 void ScorchV::drawFrame()
 {
-    vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(devMan.device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(devMan.device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -721,9 +639,9 @@ void ScorchV::drawFrame()
 
     updateUniformBuffer(currentFrame);
 
-    vkResetFences(device, 1, &inFlightFences[currentFrame]);
+    vkResetFences(devMan.device, 1, &inFlightFences[currentFrame]);
 
-    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+    vkResetCommandPool(devMan.device, commandPools[currentFrame], 0);
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
     VkSubmitInfo submitInfo{};
@@ -779,7 +697,7 @@ VkShaderModule ScorchV::createShaderModule(const std::vector<char>& code) const
 
     VkShaderModule shaderModule;
 
-    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    if (vkCreateShaderModule(devMan.device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
         throw std::runtime_error("Failed to create a shader module!");
 
     return shaderModule;
@@ -824,95 +742,6 @@ VkExtent2D ScorchV::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilitie
     actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
     return actualExtent;
-}
-
-SwapChainSupportDetails ScorchV::querySwapChainSupport(VkPhysicalDevice device) const
-{
-    SwapChainSupportDetails details;
-
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
-
-    uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
-
-    if (formatCount != 0)
-    {
-        details.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
-    }
-
-    uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
-
-    if (presentModeCount != 0)
-    {
-        details.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
-    }
-
-    return details;
-}
-
-bool ScorchV::isDeviceSuitable(VkPhysicalDevice device) const
-{
-    const QueueFamilyIndices indices = findQueueFamilies(device);
-
-    const bool extensionsSupported = checkDeviceExtensionSupport(device);
-
-    bool swapChainAdequate = false;
-    if (extensionsSupported)
-    {
-        const SwapChainSupportDetails swapChainSuport = querySwapChainSupport(device);
-        swapChainAdequate = !swapChainSuport.formats.empty() && !swapChainSuport.presentModes.empty();
-    }
-
-    return indices.isComplete() && extensionsSupported && swapChainAdequate;
-}
-
-bool ScorchV::checkDeviceExtensionSupport(VkPhysicalDevice device)
-{
-    uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
-    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-    for (const auto& extension : availableExtensions)
-    {
-        requiredExtensions.erase(extension.extensionName);
-    }
-
-    return requiredExtensions.empty();
-}
-
-QueueFamilyIndices ScorchV::findQueueFamilies(VkPhysicalDevice device) const
-{
-    QueueFamilyIndices indices;
-
-    uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-    int i = 0;
-    for (const auto& queueFamily : queueFamilies)
-    {
-        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) indices.graphicsFamily = i;
-
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-
-        if (presentSupport) indices.presentFamily = i;
-
-        if (indices.isComplete()) break;
-
-        i++;
-    }
-
-    return indices;
 }
 
 std::vector<char> ScorchV::readFile(const std::string& filename)
