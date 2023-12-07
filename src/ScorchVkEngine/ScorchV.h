@@ -11,7 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <Abstractions/ValidationLayers.h>
-#include <Abstractions/DeviceManager.h>
+#include <Abstractions/PresentationManager.h>
 #include <Abstractions/VulkanMemoryAllocator.h>
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
@@ -84,9 +84,8 @@ private:
 
     VkInstance instance{};
     ValidationLayers vLayers;
-    VkSurfaceKHR surface{};
 
-    DeviceManager devMan{surface};
+    PresentationManager presentMan;
     QueueFamilyIndices _indices;
 
     VkQueue graphicsQueue{};
@@ -140,8 +139,7 @@ private:
     {
         createInstance();
         vLayers.setupDebugMessenger(instance);
-        createSurface();
-        devMan.setUpDevices(instance, vLayers, graphicsQueue, presentQueue);
+        presentMan.setUpPresentation(instance, window, vLayers, graphicsQueue, presentQueue);
         createSwapChain();
         createImageViews();
         createRenderPass();
@@ -149,7 +147,7 @@ private:
         createGraphicsPipeline();
         createFramebuffers();
         createCommandPools();
-        VMA.createAllocator(devMan.physicalDevice, devMan.device, instance);
+        VMA.createAllocator(presentMan.physicalDevice, presentMan.device, instance);
         createVertexBuffer();
         createIndexBuffer();
         createUniformBuffers();
@@ -166,7 +164,6 @@ private:
 
     void recreateSwapChain();
     void createInstance();
-    void createSurface();
     void createSwapChain();
     void createImageViews();
     void createRenderPass();
@@ -177,14 +174,14 @@ private:
 
     void createVkCommandPool(VkCommandPool& commandPool, VkCommandPoolCreateFlags flags)
     {
-        const QueueFamilyIndices queueFamilyIndices = devMan.findQueueFamilies(devMan.physicalDevice);
+        const QueueFamilyIndices queueFamilyIndices = presentMan.findQueueFamilies(presentMan.physicalDevice);
 
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = flags;
         poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
-        if (vkCreateCommandPool(devMan.device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+        if (vkCreateCommandPool(presentMan.device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
             throw std::runtime_error("Failed to create the command pool!");
     }
 
@@ -204,7 +201,7 @@ private:
 
         VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferAllocation);
 
-        VMA.copyBuffer(devMan.device, commandPools[0], graphicsQueue, stagingBuffer, buffer, bufferSize);
+        VMA.copyBuffer(presentMan.device, commandPools[0], graphicsQueue, stagingBuffer, buffer, bufferSize);
 
         vmaFlushAllocation(VMA.allocator, stagingBufferAllocation, 0, data.size());
         vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);

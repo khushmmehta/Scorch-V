@@ -1,6 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <optional>
 #include <vector>
 
@@ -25,35 +26,25 @@ struct SwapChainSupportDetails
     std::vector<VkPresentModeKHR> presentModes;
 };
 
-class DeviceManager
+class PresentationManager
 {
 public:
+    VkSurfaceKHR surface{};
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device{};
 
     QueueFamilyIndices _indices;
 
     SwapChainSupportDetails swapChainSupport{};
-    
-    explicit DeviceManager(VkSurfaceKHR& surface)
-        : surface(surface)
-    {
-    }
 
-    void setUpDevices(VkInstance instance, ValidationLayers& vLayers, VkQueue& gfxQ, VkQueue& prstQ)
-    {
-        pickPhysicalDevice(instance);
-        createLogicalDevice(vLayers, gfxQ, prstQ);
-    }
-
-    void destroyDevice() { vkDestroyDevice(device, nullptr); }
+    void setUpPresentation(VkInstance instance, GLFWwindow* window, ValidationLayers& vLayers, VkQueue& gfxQ, VkQueue& prstQ);
+    void destroyPresentation(VkInstance instance);
 
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice& device);
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice& device);
     static bool checkDeviceExtensionSupport(VkPhysicalDevice& device);
 
 private:
-    VkSurfaceKHR& surface;
 
     bool isDeviceSuitable(VkPhysicalDevice& device);
     void pickPhysicalDevice(VkInstance instance);

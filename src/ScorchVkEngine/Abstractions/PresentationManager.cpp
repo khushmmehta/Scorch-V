@@ -1,8 +1,25 @@
-#include "DeviceManager.h"
+#include "PresentationManager.h"
 #include <set>
 #include <string>
 
-bool DeviceManager::isDeviceSuitable(VkPhysicalDevice& device)
+void PresentationManager::setUpPresentation(VkInstance instance, GLFWwindow* window, ValidationLayers& vLayers, VkQueue& gfxQ, VkQueue& prstQ)
+{
+    // Create Surface
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create window surface!");
+
+    // Setup Devices
+    pickPhysicalDevice(instance);
+    createLogicalDevice(vLayers, gfxQ, prstQ);
+}
+
+void PresentationManager::destroyPresentation(VkInstance instance)
+{
+    vkDestroyDevice(device, nullptr);
+    vkDestroySurfaceKHR(instance, surface, nullptr);
+}
+
+bool PresentationManager::isDeviceSuitable(VkPhysicalDevice& device)
 {
     _indices = findQueueFamilies(device);
 
@@ -17,7 +34,7 @@ bool DeviceManager::isDeviceSuitable(VkPhysicalDevice& device)
     return _indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
-QueueFamilyIndices DeviceManager::findQueueFamilies(VkPhysicalDevice& device)
+QueueFamilyIndices PresentationManager::findQueueFamilies(VkPhysicalDevice& device)
 {
     QueueFamilyIndices indices;
 
@@ -43,7 +60,7 @@ QueueFamilyIndices DeviceManager::findQueueFamilies(VkPhysicalDevice& device)
     return indices;
 }
 
-SwapChainSupportDetails DeviceManager::querySwapChainSupport(VkPhysicalDevice& device)
+SwapChainSupportDetails PresentationManager::querySwapChainSupport(VkPhysicalDevice& device)
 {
     SwapChainSupportDetails details;
 
@@ -70,7 +87,7 @@ SwapChainSupportDetails DeviceManager::querySwapChainSupport(VkPhysicalDevice& d
     return details;
 }
 
-bool DeviceManager::checkDeviceExtensionSupport(VkPhysicalDevice& device)
+bool PresentationManager::checkDeviceExtensionSupport(VkPhysicalDevice& device)
 {
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
@@ -88,7 +105,7 @@ bool DeviceManager::checkDeviceExtensionSupport(VkPhysicalDevice& device)
     return requiredExtensions.empty();
 }
 
-void DeviceManager::pickPhysicalDevice(VkInstance instance)
+void PresentationManager::pickPhysicalDevice(VkInstance instance)
 {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -110,10 +127,8 @@ void DeviceManager::pickPhysicalDevice(VkInstance instance)
     if (physicalDevice == VK_NULL_HANDLE) throw std::runtime_error("Failed to find a suitable GPU!");
 }
 
-void DeviceManager::createLogicalDevice(ValidationLayers vLayers, VkQueue& gfxQ, VkQueue& prstQ)
+void PresentationManager::createLogicalDevice(ValidationLayers vLayers, VkQueue& gfxQ, VkQueue& prstQ)
 {
-    //QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {_indices.graphicsFamily.value(), _indices.presentFamily.value()};
 
