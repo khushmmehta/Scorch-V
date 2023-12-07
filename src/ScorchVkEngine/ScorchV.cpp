@@ -1,7 +1,6 @@
 #include "ScorchV.h"
 
 #include <stdexcept>
-#include <algorithm>
 #include <fstream>
 
 #include "Abstractions/VulkanMemoryAllocator.h"
@@ -17,13 +16,7 @@ void ScorchV::initWindow()
 
     window = glfwCreateWindow(WIDTH, HEIGHT, "Scorch-V", nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
-    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
-}
-
-void ScorchV::framebufferResizeCallback(GLFWwindow* window, int width, int height)
-{
-    const auto app = static_cast<ScorchV*>(glfwGetWindowUserPointer(window));
-    app->frameBufferResized = true;
+    glfwSetFramebufferSizeCallback(window, presentMan.framebufferResizeCallback);
 }
 
 void ScorchV::mainLoop()
@@ -37,16 +30,9 @@ void ScorchV::mainLoop()
     vkDeviceWaitIdle(presentMan.device);
 }
 
-void ScorchV::cleanupSwapChain()
-{
-    for (const auto framebuffer : swapChainFramebuffers)  { vkDestroyFramebuffer(presentMan.device, framebuffer, nullptr); }
-    for (const auto imageView: swapChainImageViews) { vkDestroyImageView(presentMan.device, imageView, nullptr); }
-    vkDestroySwapchainKHR(presentMan.device, swapChain, nullptr);
-}
-
 void ScorchV::cleanup()
 {
-    cleanupSwapChain();
+    presentMan.cleanupSwapChain();
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -88,23 +74,6 @@ void ScorchV::cleanup()
     glfwTerminate();
 }
 
-void ScorchV::recreateSwapChain()
-{
-    int width(0), height(0);
-    glfwGetFramebufferSize(window, &width, &height);
-    while (width == 0 || height == 0)
-    {
-        glfwGetFramebufferSize(window, &width, &height);
-        glfwWaitEvents();
-    }
-
-    vkDeviceWaitIdle(presentMan.device);
-
-    createSwapChain();
-    createImageViews();
-    createFramebuffers();
-}
-
 void ScorchV::createInstance()
 {
     vLayers.checkValidationPossible();
@@ -112,7 +81,7 @@ void ScorchV::createInstance()
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Scorch-V";
-    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 5);
+    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 6);
     appInfo.pEngineName = "Scorch Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
@@ -127,97 +96,10 @@ void ScorchV::createInstance()
         throw std::runtime_error("Failed to create instance!");
 }
 
-void ScorchV::createSwapChain()
-{
-    const SwapChainSupportDetails swapChainSupport = presentMan.swapChainSupport;
-
-    const VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
-    const VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-    const VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
-
-    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-
-    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
-        imageCount = swapChainSupport.capabilities.maxImageCount;
-
-    VkSwapchainCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = presentMan.surface;
-
-    createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = surfaceFormat.format;
-    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
-    createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    _indices = presentMan.findQueueFamilies(presentMan.physicalDevice);
-    const uint32_t queueFamilyIndices[] = { _indices.graphicsFamily.value(), _indices.presentFamily.value() };
-
-    if (_indices.graphicsFamily != _indices.presentFamily)
-    {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    }
-    else
-    {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;
-        createInfo.pQueueFamilyIndices = nullptr;
-    }
-
-    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
-
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
-
-    if (vkCreateSwapchainKHR(presentMan.device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create swap chain!");
-
-    vkGetSwapchainImagesKHR(presentMan.device, swapChain, &imageCount, nullptr);
-    swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(presentMan.device, swapChain, &imageCount, swapChainImages.data());
-
-    swapChainImageFormat = surfaceFormat.format;
-    swapChainExtent = extent;
-}
-
-void ScorchV::createImageViews()
-{
-    swapChainImageViews.resize(swapChainImages.size());
-
-    for (size_t i = 0; i < swapChainImages.size(); i++)
-    {
-        VkImageViewCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image = swapChainImages[i];
-
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = swapChainImageFormat;
-
-        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        createInfo.subresourceRange.baseMipLevel = 0;
-        createInfo.subresourceRange.levelCount = 1;
-        createInfo.subresourceRange.baseArrayLayer = 0;
-        createInfo.subresourceRange.layerCount = 1;
-
-        if (vkCreateImageView(presentMan.device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS)
-            throw std::runtime_error("Failed to create image views!");
-    }
-}
-
 void ScorchV::createRenderPass()
 {
     VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = swapChainImageFormat;
+    colorAttachment.format = presentMan.swapChainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -400,30 +282,6 @@ void ScorchV::createGraphicsPipeline()
     vkDestroyShaderModule(presentMan.device, vertShaderModule, nullptr);
 }
 
-void ScorchV::createFramebuffers()
-{
-    swapChainFramebuffers.resize(swapChainImageViews.size());
-
-    for (size_t i = 0; i < swapChainImageViews.size(); i++)
-    {
-        const VkImageView attachments[] = {
-            swapChainImageViews[i]
-        };
-
-        VkFramebufferCreateInfo frameBufferInfo{};
-        frameBufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        frameBufferInfo.renderPass = renderPass;
-        frameBufferInfo.attachmentCount = 1;
-        frameBufferInfo.pAttachments = attachments;
-        frameBufferInfo.width = swapChainExtent.width;
-        frameBufferInfo.height = swapChainExtent.height;
-        frameBufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(presentMan.device, &frameBufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
-            throw std::runtime_error("Failed to create framebuffer!");
-    }
-}
-
 void ScorchV::createCommandPools()
 {
     commandPools.resize(MAX_FRAMES_IN_FLIGHT);
@@ -537,9 +395,9 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+    renderPassInfo.framebuffer = presentMan.swapChainFramebuffers[imageIndex];
     renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swapChainExtent;
+    renderPassInfo.renderArea.extent = presentMan.swapChainExtent;
 
     constexpr VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
     renderPassInfo.clearValueCount = 1;
@@ -552,15 +410,15 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = static_cast<float>(swapChainExtent.width);
-        viewport.height = static_cast<float>(swapChainExtent.height);
+        viewport.width = static_cast<float>(presentMan.swapChainExtent.width);
+        viewport.height = static_cast<float>(presentMan.swapChainExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
         VkRect2D scissor{};
         scissor.offset = {0, 0};
-        scissor.extent = swapChainExtent;
+        scissor.extent = presentMan.swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         const VkBuffer vertexBuffers[] = {vertexBuffer};
@@ -606,8 +464,11 @@ void ScorchV::updateUniformBuffer(uint32_t currentImage)
     ubo.model = translate(glm::mat4(1.0f), glm::vec3(0.0f));
     ubo.view = translate(glm::mat4(1.0f), glm::vec3(0.0f));
 
-    const float windowHalfWidth = swapChainExtent.width * 0.5f;
-    const float windowHalfHeight = swapChainExtent.height * 0.5f;
+    int width, height;
+    glfwGetFramebufferSize(presentMan.ptrWindow, &width, &height);
+
+    const float windowHalfWidth = width * 0.5f;
+    const float windowHalfHeight = height * 0.5f;
 
     ubo.proj = glm::ortho(-windowHalfWidth / 10, windowHalfWidth / 10, -windowHalfHeight / 10, windowHalfHeight / 10, -1.0f, 1.0f);
     ubo.proj[1][1] *= -1;
@@ -620,11 +481,11 @@ void ScorchV::drawFrame()
     vkWaitForFences(presentMan.device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(presentMan.device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(presentMan.device, presentMan.swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        recreateSwapChain();
+        presentMan.recreateSwapChain(renderPass);
         return;
     }
 
@@ -663,7 +524,7 @@ void ScorchV::drawFrame()
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = signalSemaphores;
 
-    const VkSwapchainKHR swapChains[] = { swapChain };
+    const VkSwapchainKHR swapChains[] = { presentMan.swapChain };
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
 
@@ -671,10 +532,10 @@ void ScorchV::drawFrame()
 
     result = vkQueuePresentKHR(presentQueue, &presentInfo);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || frameBufferResized)
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || presentMan.frameBufferResized)
     {
-        frameBufferResized = false;
-        recreateSwapChain();
+        presentMan.frameBufferResized = false;
+        presentMan.recreateSwapChain(renderPass);
     }
     else if (result != VK_SUCCESS)
         throw std::runtime_error("Failed to present swap chain image!");
@@ -695,47 +556,6 @@ VkShaderModule ScorchV::createShaderModule(const std::vector<char>& code) const
         throw std::runtime_error("Failed to create a shader module!");
 
     return shaderModule;
-}
-
-VkSurfaceFormatKHR ScorchV::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
-{
-    for (const auto& availableFormat : availableFormats)
-    {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-            return availableFormat;
-    }
-
-    return availableFormats[0];
-}
-
-VkPresentModeKHR ScorchV::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
-{
-    for (const auto& availablePresentMode : availablePresentModes)
-    {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
-            return availablePresentMode;
-    }
-
-    return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-VkExtent2D ScorchV::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const
-{
-    // The number below is the maximum numeric limit for a uint32_t
-    if (capabilities.currentExtent.width != 4294967295) return capabilities.currentExtent;
-
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-
-    VkExtent2D actualExtent = {
-        static_cast<uint32_t>(width),
-        static_cast<uint32_t>(height)
-    };
-
-    actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-    actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-
-    return actualExtent;
 }
 
 std::vector<char> ScorchV::readFile(const std::string& filename)

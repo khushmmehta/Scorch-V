@@ -85,17 +85,11 @@ private:
     VkInstance instance{};
     ValidationLayers vLayers;
 
-    PresentationManager presentMan;
+    PresentationManager presentMan{};
     QueueFamilyIndices _indices;
 
     VkQueue graphicsQueue{};
     VkQueue presentQueue{};
-
-    VkSwapchainKHR swapChain{};
-    std::vector<VkImage> swapChainImages;
-    VkFormat swapChainImageFormat{};
-    VkExtent2D swapChainExtent{};
-    std::vector<VkImageView> swapChainImageViews;
 
     VkRenderPass renderPass{};
 
@@ -103,8 +97,6 @@ private:
     VkPipelineLayout pipelineLayout{};
 
     VkPipeline graphicsPipeline{};
-
-    std::vector<VkFramebuffer> swapChainFramebuffers;
 
     std::vector<VkCommandPool> commandPools{};
 
@@ -129,23 +121,19 @@ private:
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
 
-    bool frameBufferResized = false;
     #pragma endregion
 
     void initWindow();
-    static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
     void initVulkan()
     {
         createInstance();
         vLayers.setupDebugMessenger(instance);
         presentMan.setUpPresentation(instance, window, vLayers, graphicsQueue, presentQueue);
-        createSwapChain();
-        createImageViews();
         createRenderPass();
         createDescriptorSetLayout();
         createGraphicsPipeline();
-        createFramebuffers();
+        presentMan.createFramebuffers(renderPass);
         createCommandPools();
         VMA.createAllocator(presentMan.physicalDevice, presentMan.device, instance);
         createVertexBuffer();
@@ -159,17 +147,12 @@ private:
 
     void mainLoop();
 
-    void cleanupSwapChain();
     void cleanup();
 
-    void recreateSwapChain();
     void createInstance();
-    void createSwapChain();
-    void createImageViews();
     void createRenderPass();
     void createDescriptorSetLayout();
     void createGraphicsPipeline();
-    void createFramebuffers();
     void createCommandPools();
 
     void createVkCommandPool(VkCommandPool& commandPool, VkCommandPoolCreateFlags flags)
@@ -220,8 +203,5 @@ private:
     void drawFrame();
 
     VkShaderModule createShaderModule(const std::vector<char>& code) const;
-    static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-    static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
     static std::vector<char> readFile(const std::string& filename);
 };
