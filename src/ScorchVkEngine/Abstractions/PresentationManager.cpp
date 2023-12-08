@@ -23,6 +23,8 @@ void PresentationManager::setUpPresentation(VkInstance instance, GLFWwindow* win
 
 void PresentationManager::destroyPresentation(VkInstance instance)
 {
+    vkDeviceWaitIdle(device);
+
     vkDestroyDevice(device, nullptr);
     vkDestroySurfaceKHR(instance, surface, nullptr);
 }

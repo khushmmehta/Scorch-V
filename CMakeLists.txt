@@ -11,7 +11,9 @@ set(SOURCE_FILES src/main.cpp
         src/ScorchVkEngine/Abstractions/VulkanMemoryAllocator.cpp
         src/ScorchVkEngine/Abstractions/VulkanMemoryAllocator.h
         src/ScorchVkEngine/Abstractions/PresentationManager.cpp
-        src/ScorchVkEngine/Abstractions/PresentationManager.h)
+        src/ScorchVkEngine/Abstractions/PresentationManager.h
+        src/ScorchVkEngine/Abstractions/Rendering/Shader.cpp
+        src/ScorchVkEngine/Abstractions/Rendering/Shader.h)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4099")

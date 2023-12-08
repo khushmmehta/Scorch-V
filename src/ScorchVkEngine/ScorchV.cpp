@@ -1,9 +1,8 @@
 #include "ScorchV.h"
 
 #include <stdexcept>
-#include <fstream>
 
-#include "Abstractions/VulkanMemoryAllocator.h"
+#include <Abstractions/Rendering/Shader.h>
 
 constexpr uint32_t WIDTH = 800;
 constexpr uint32_t HEIGHT = 600;
@@ -81,7 +80,7 @@ void ScorchV::createInstance()
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Scorch-V";
-    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 6);
+    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 7);
     appInfo.pEngineName = "Scorch Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
@@ -158,25 +157,7 @@ void ScorchV::createDescriptorSetLayout()
 
 void ScorchV::createGraphicsPipeline()
 {
-    auto vertShaderCode = readFile("../res/spir-v/vert.spv");
-    auto fragShaderCode = readFile("../res/spir-v/frag.spv");
-
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
-
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertShaderModule;
-    vertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragShaderModule;
-    fragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+    Shader shader{presentMan.device, "../res/spir-v/vert.spv", "../res/spir-v/circleFrag.spv"};
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -259,7 +240,7 @@ void ScorchV::createGraphicsPipeline()
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pStages = shader.shaderStages;
 
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
@@ -278,8 +259,7 @@ void ScorchV::createGraphicsPipeline()
     if (vkCreateGraphicsPipelines(presentMan.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
         throw std::runtime_error("Failed to create graphics pipeline!");
 
-    vkDestroyShaderModule(presentMan.device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(presentMan.device, vertShaderModule, nullptr);
+    shader.destroyShader(presentMan.device);
 }
 
 void ScorchV::createCommandPools()
@@ -541,36 +521,4 @@ void ScorchV::drawFrame()
         throw std::runtime_error("Failed to present swap chain image!");
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-VkShaderModule ScorchV::createShaderModule(const std::vector<char>& code) const
-{
-    VkShaderModuleCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-    VkShaderModule shaderModule;
-
-    if (vkCreateShaderModule(presentMan.device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create a shader module!");
-
-    return shaderModule;
-}
-
-std::vector<char> ScorchV::readFile(const std::string& filename)
-{
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open())
-        throw std::runtime_error("Failed to open the file!");
-
-    const size_t fileSize = file.tellg();
-    std::vector<char> buffer(fileSize);
-
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-    file.close();
-
-    return buffer;
 }
