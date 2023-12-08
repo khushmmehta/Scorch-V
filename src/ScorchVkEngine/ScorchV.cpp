@@ -1,3 +1,4 @@
+#define MAX_FRAMES_IN_FLIGHT 2
 #include "ScorchV.h"
 
 #include <stdexcept>
@@ -33,19 +34,12 @@ void ScorchV::cleanup()
 {
     presentMan.cleanupSwapChain();
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        vmaUnmapMemory(VMA.allocator, uniformBuffersAllocation[i]);
-        vmaDestroyBuffer(VMA.allocator, uniformBuffers[i], uniformBuffersAllocation[i]);
-    }
+    bufferMan.destroyUniformBuffers();
 
     vkDestroyDescriptorPool(presentMan.device, descriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(presentMan.device, descriptorSetLayout, nullptr);
 
-    vmaDestroyBuffer(VMA.allocator, indexBuffer, indexBufferMemory);
-    vmaDestroyBuffer(VMA.allocator, vertexBuffer, vertexBufferMemory);
-
-    vmaDestroyAllocator(VMA.allocator);
+    bufferMan.destroyBufferManager();
 
     vkDestroyPipeline(presentMan.device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(presentMan.device, pipelineLayout, nullptr);
@@ -61,7 +55,6 @@ void ScorchV::cleanup()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         vkDestroyCommandPool(presentMan.device, commandPools[i], nullptr);
-
 
     presentMan.destroyPresentation(instance);
 
@@ -80,7 +73,7 @@ void ScorchV::createInstance()
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Scorch-V";
-    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 7);
+    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 8);
     appInfo.pEngineName = "Scorch Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
@@ -269,31 +262,6 @@ void ScorchV::createCommandPools()
         createVkCommandPool(commandPools[i], VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 }
 
-void ScorchV::createVertexBuffer()
-{
-    createVkBuffer<Vertex>(vertices, vertexBuffer, vertexBufferMemory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-}
-
-void ScorchV::createIndexBuffer()
-{
-    createVkBuffer<uint16_t>(indices, indexBuffer, indexBufferMemory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-}
-
-void ScorchV::createUniformBuffers()
-{
-    constexpr VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersAllocation.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersAllocation[i]);
-        vmaMapMemory(VMA.allocator, uniformBuffersAllocation[i], &uniformBuffersMapped[i]);
-    }
-}
-
 void ScorchV::createDescriptorPool()
 {
     VkDescriptorPoolSize poolSize{};
@@ -326,7 +294,7 @@ void ScorchV::createDescriptorSets()
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.buffer = bufferMan.uniformBuffers[i];
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(UniformBufferObject);
 
@@ -371,7 +339,6 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
         throw std::runtime_error("Failed to begin recording command buffer!");
 
-
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass;
@@ -401,11 +368,11 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
         scissor.extent = presentMan.swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        const VkBuffer vertexBuffers[] = {vertexBuffer};
+        const std::vector<VkBuffer> vertexBuffers = {bufferMan.vertexBuffer};
         constexpr VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets);
 
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(commandBuffer, bufferMan.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
@@ -438,24 +405,6 @@ void ScorchV::createSyncObjects()
     }
 }
 
-void ScorchV::updateUniformBuffer(uint32_t currentImage)
-{
-    UniformBufferObject ubo{};
-    ubo.model = translate(glm::mat4(1.0f), glm::vec3(0.0f));
-    ubo.view = translate(glm::mat4(1.0f), glm::vec3(0.0f));
-
-    int width, height;
-    glfwGetFramebufferSize(presentMan.ptrWindow, &width, &height);
-
-    const float windowHalfWidth = width * 0.5f;
-    const float windowHalfHeight = height * 0.5f;
-
-    ubo.proj = glm::ortho(-windowHalfWidth / 10, windowHalfWidth / 10, -windowHalfHeight / 10, windowHalfHeight / 10, -1.0f, 1.0f);
-    ubo.proj[1][1] *= -1;
-
-    memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
-}
-
 void ScorchV::drawFrame()
 {
     vkWaitForFences(presentMan.device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
@@ -472,7 +421,7 @@ void ScorchV::drawFrame()
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         throw std::runtime_error("Failed to acquire swap chain image!");
 
-    updateUniformBuffer(currentFrame);
+    bufferMan.updateUniformBuffer(window, currentFrame);
 
     vkResetFences(presentMan.device, 1, &inFlightFences[currentFrame]);
 

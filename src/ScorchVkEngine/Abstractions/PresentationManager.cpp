@@ -23,8 +23,6 @@ void PresentationManager::setUpPresentation(VkInstance instance, GLFWwindow* win
 
 void PresentationManager::destroyPresentation(VkInstance instance)
 {
-    vkDeviceWaitIdle(device);
-
     vkDestroyDevice(device, nullptr);
     vkDestroySurfaceKHR(instance, surface, nullptr);
 }
@@ -202,6 +200,9 @@ void PresentationManager::recreateSwapChain(VkRenderPass renderPass)
     }
 
     vkDeviceWaitIdle(device);
+
+    for (const auto frameBuffer : swapChainFramebuffers) vkDestroyFramebuffer(device, frameBuffer, nullptr);
+    for (const auto imageView : swapChainImageViews) vkDestroyImageView(device, imageView, nullptr);
 
     createSwapChain();
     createImageViews();
