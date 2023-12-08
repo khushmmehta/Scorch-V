@@ -56,11 +56,17 @@ struct UniformBufferObject
 class BufferManager
 {
 public:
+    VkDescriptorSetLayout descriptorSetLayout{};
+    std::vector<VkDescriptorSet> descriptorSets;
+
     VulkanMemoryAllocator VMA;
     VkBuffer vertexBuffer{};
     VkBuffer indexBuffer{};
     std::vector<VkBuffer> uniformBuffers;
     std::vector<void*> uniformBuffersMapped;
+
+    void createDescriptorSetLayout(VkDevice device);
+    void destroyResourceDescriptor(VkDevice device);
 
     void setUpBufferManager(VkPhysicalDevice physicalDevice, VkDevice device, VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
     void destroyBufferManager();
@@ -72,6 +78,11 @@ private:
     VmaAllocation vertexBufferAllocation{};
     VmaAllocation indexBufferAllocation{};
     std::vector<VmaAllocation> uniformBuffersAllocation;
+
+    VkDescriptorPool descriptorPool{};
+
+    void createDescriptorPool(VkDevice device);
+    void createDescriptorSets(VkDevice device);
 
     void createVertexArrayObject(VkDevice device, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
     void createUniformBuffers();

@@ -47,17 +47,12 @@ private:
 
     VkRenderPass renderPass{};
 
-    VkDescriptorSetLayout descriptorSetLayout{};
     VkPipelineLayout pipelineLayout{};
-
     VkPipeline graphicsPipeline{};
 
     std::vector<VkCommandPool> commandPools{};
 
     BufferManager bufferMan;
-
-    VkDescriptorPool descriptorPool{};
-    std::vector<VkDescriptorSet> descriptorSets;
 
     std::vector<VkCommandBuffer> commandBuffers;
 
@@ -76,13 +71,11 @@ private:
         vLayers.setupDebugMessenger(instance);
         presentMan.setUpPresentation(instance, window, vLayers, graphicsQueue, presentQueue);
         createRenderPass();
-        createDescriptorSetLayout();
+        bufferMan.createDescriptorSetLayout(presentMan.device);
         createGraphicsPipeline();
         presentMan.createFramebuffers(renderPass);
         createCommandPools();
         bufferMan.setUpBufferManager(presentMan.physicalDevice, presentMan.device, instance, vertices, indices, commandPools[0], graphicsQueue);
-        createDescriptorPool();
-        createDescriptorSets();
         createCommandBuffers();
         createSyncObjects();
     }
@@ -92,7 +85,6 @@ private:
 
     void createInstance();
     void createRenderPass();
-    void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createCommandPools();
 
@@ -108,9 +100,6 @@ private:
         if (vkCreateCommandPool(presentMan.device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
             throw std::runtime_error("Failed to create the command pool!");
     }
-
-    void createDescriptorPool();
-    void createDescriptorSets();
 
     void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;
