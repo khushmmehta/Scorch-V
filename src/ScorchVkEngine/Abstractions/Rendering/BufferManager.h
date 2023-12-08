@@ -71,7 +71,7 @@ public:
     void setUpBufferManager(VkPhysicalDevice physicalDevice, VkDevice device, VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
     void destroyBufferManager();
 
-    void updateUniformBuffer(GLFWwindow* window, uint32_t currentImage);
+    void updateUniformBuffers(GLFWwindow* window, uint32_t currentImage);
     void destroyUniformBuffers();
 
 private:

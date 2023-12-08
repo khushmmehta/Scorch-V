@@ -8,18 +8,7 @@
 #include <Abstractions/ValidationLayers.h>
 #include <Abstractions/PresentationManager.h>
 #include <Abstractions/Rendering/BufferManager.h>
-
-const std::vector<Vertex> vertices = {
-    { { -10.0f,  10.0f, 0 }, { 1.0f, 0.0f, 0.0f }, { -1.0f,  1.0f } },
-    { {  10.0f,  10.0f, 0 }, { 0.0f, 1.0f, 0.0f }, {  1.0f,  1.0f } },
-    { {  10.0f, -10.0f, 0 }, { 0.0f, 0.0f, 1.0f }, {  1.0f, -1.0f } },
-    { { -10.0f, -10.0f, 0 }, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f } },
-};
-
-const std::vector<uint16_t> indices = {
-    0, 1, 2,
-    2, 3, 0,
-};
+#include <Abstractions/Rendering/Objects/MeshObject.h>
 
 class ScorchV
 {
@@ -41,6 +30,8 @@ private:
 
     PresentationManager presentMan{};
     QueueFamilyIndices _indices;
+
+    MeshObject mesh;
 
     VkQueue graphicsQueue{};
     VkQueue presentQueue{};
@@ -75,7 +66,8 @@ private:
         createGraphicsPipeline();
         presentMan.createFramebuffers(renderPass);
         createCommandPools();
-        bufferMan.setUpBufferManager(presentMan.physicalDevice, presentMan.device, instance, vertices, indices, commandPools[0], graphicsQueue);
+        // Here is where I provide my meshdata to create their buffers
+        bufferMan.setUpBufferManager(presentMan.physicalDevice, presentMan.device, instance, mesh.vertices, mesh.indices, commandPools[0], graphicsQueue);
         createCommandBuffers();
         createSyncObjects();
     }
@@ -102,7 +94,7 @@ private:
     }
 
     void createCommandBuffers();
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) const;
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void createSyncObjects();
     void drawFrame();
 };

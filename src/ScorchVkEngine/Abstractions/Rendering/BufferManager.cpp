@@ -116,7 +116,7 @@ void BufferManager::createUniformBuffers()
     }
 }
 
-void BufferManager::updateUniformBuffer(GLFWwindow* window, uint32_t currentImage)
+void BufferManager::updateUniformBuffers(GLFWwindow* window, uint32_t currentImage)
 {
     UniformBufferObject ubo{};
     ubo.model = translate(glm::mat4(1.0f), glm::vec3(0.0f));

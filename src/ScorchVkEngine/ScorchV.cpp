@@ -259,7 +259,7 @@ void ScorchV::createCommandBuffers()
     }
 }
 
-void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) const
+void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -298,14 +298,7 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
         scissor.extent = presentMan.swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        const std::vector<VkBuffer> vertexBuffers = {bufferMan.vertexBuffer};
-        constexpr VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets);
-
-        vkCmdBindIndexBuffer(commandBuffer, bufferMan.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &bufferMan.descriptorSets[currentFrame], 0, nullptr);
-
-        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        mesh.draw(commandBuffer, pipelineLayout, bufferMan, currentFrame);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -351,7 +344,7 @@ void ScorchV::drawFrame()
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         throw std::runtime_error("Failed to acquire swap chain image!");
 
-    bufferMan.updateUniformBuffer(window, currentFrame);
+    bufferMan.updateUniformBuffers(window, currentFrame);
 
     vkResetFences(presentMan.device, 1, &inFlightFences[currentFrame]);
 
