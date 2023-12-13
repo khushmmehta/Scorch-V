@@ -24,6 +24,9 @@ void ScorchV::mainLoop()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+
+        guiMan->newFrame();
+
         drawFrame();
     }
 
@@ -32,6 +35,7 @@ void ScorchV::mainLoop()
 
 void ScorchV::cleanup()
 {
+    guiMan->destroyImGui();
     presentMan.cleanupSwapChain();
 
     bufferMan.destroyUniformBuffers();
@@ -300,6 +304,8 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
 
         mesh.draw(commandBuffer, pipelineLayout, bufferMan, currentFrame);
 
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+
     vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
@@ -349,6 +355,9 @@ void ScorchV::drawFrame()
     vkResetFences(presentMan.device, 1, &inFlightFences[currentFrame]);
 
     vkResetCommandPool(presentMan.device, commandPools[currentFrame], 0);
+
+    ImGui::Render();
+
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
     VkSubmitInfo submitInfo{};

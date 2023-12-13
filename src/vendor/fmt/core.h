@@ -8,7 +8,7 @@
 #ifndef FMT_CORE_H_
 #define FMT_CORE_H_
 
-#define err __acrt_iob_func(2)
+#define fmterr __acrt_iob_func(2)
 
 #include <cstddef>  // std::byte
 #include <cstdio>   // std::FILE
