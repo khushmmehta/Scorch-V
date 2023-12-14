@@ -101,11 +101,6 @@ void BufferManager::createVertexArrayObject(VkDevice device, const std::vector<V
     createVkBuffer<uint16_t>(device, indices, indexBuffer, indexBufferAllocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, commandPool, gfxQueue);
 }
 
-void BufferManager::destroyImguiFontBuffer(VkImage fontImage)
-{
-    vmaDestroyImage(VMA.allocator, fontImage, imguiFontAllocation);
-}
-
 void BufferManager::createUniformBuffers()
 {
     constexpr VkDeviceSize bufferSize = sizeof(UniformBufferObject);
@@ -124,6 +119,13 @@ void BufferManager::createUniformBuffers()
 void BufferManager::createImguiFontBuffer(VkDevice device, const VkImage& fontImage, VkQueue gfxQueue)
 {
     createVkImGuiBuffer(device, fontImage, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, gfxQueue);
+}
+
+void BufferManager::destroyImguiFontBuffer(VkImage fontImage, VkDevice device)
+{
+    vkDestroyImage(device, fontImage, nullptr);
+    vkDestroyBuffer(device, imguiImageBuffer, nullptr);
+    vmaFreeMemory(VMA.allocator, imguiFontAllocation);
 }
 
 void BufferManager::updateUniformBuffers(GLFWwindow* window, uint32_t currentImage)

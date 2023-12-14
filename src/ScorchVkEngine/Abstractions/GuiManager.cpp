@@ -30,11 +30,12 @@ void GuiManager::setupImGui(VkInstance instance, PresentationManager presentMan,
     pool_info.poolSizeCount = std::size(pool_sizes);
     pool_info.pPoolSizes = pool_sizes;
 
-    VkDescriptorPool imguiPool;
     vkCreateDescriptorPool(presentMan.device, &pool_info, nullptr, &imguiPool);
 
     ImGuiContext* imguiContext = ImGui::CreateContext();
     ImGui::SetCurrentContext(imguiContext);
+
+    const ImGuiIO& io = ImGui::GetIO();
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
 
@@ -76,10 +77,12 @@ void GuiManager::setupImGui(VkInstance instance, PresentationManager presentMan,
     io.Fonts->TexID = reinterpret_cast<ImTextureID>(fontImage);
 }
 
-void GuiManager::destroyImGui()
+void GuiManager::destroyImGui(VkDevice device)
 {
-    buffMan.destroyImguiFontBuffer(fontImage);
+    buffMan.destroyImguiFontBuffer(fontImage, device);
     ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    vkDestroyDescriptorPool(device, imguiPool, nullptr);
     ImGui::DestroyContext();
 }
 

@@ -8,28 +8,25 @@
 class GuiManager
 {
 private:
-    GuiManager(VkInstance instance, PresentationManager& presentMan, GLFWwindow* window,
-                    VkQueue graphicsQueue, VkRenderPass renderPass, BufferManager& bufferMan)
-    { setupImGui(instance, presentMan, window, graphicsQueue, renderPass, bufferMan); }
+    GuiManager() {}
 
 public:
     static GuiManager* guiInstance;
-    static GuiManager* getInstance(VkInstance instance, PresentationManager presentMan, GLFWwindow* window,
-                    VkQueue graphicsQueue, VkRenderPass renderPass, BufferManager& bufferMan)
+    static GuiManager* getInstance()
     {
-        if (!guiInstance) guiInstance = new GuiManager(instance, presentMan, window, graphicsQueue, renderPass, bufferMan);
+        if (!guiInstance) guiInstance = new GuiManager();
         return guiInstance;
     }
 
-    const ImGuiIO& io = ImGui::GetIO();
     VkImage fontImage{};
 
     void setupImGui(VkInstance instance, PresentationManager presentMan, GLFWwindow* window,
                     VkQueue graphicsQueue, VkRenderPass renderPass, BufferManager& bufferMan);
-    void destroyImGui();
+    void destroyImGui(VkDevice device);
 
     static void newFrame();
 
 private:
     BufferManager buffMan;
+    VkDescriptorPool imguiPool{};
 };

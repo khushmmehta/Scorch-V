@@ -27,6 +27,8 @@ void ScorchV::mainLoop()
 
         guiMan->newFrame();
 
+        ImGui::ShowDemoWindow();
+
         drawFrame();
     }
 
@@ -35,8 +37,8 @@ void ScorchV::mainLoop()
 
 void ScorchV::cleanup()
 {
-    guiMan->destroyImGui();
     presentMan.cleanupSwapChain();
+    guiMan->destroyImGui(presentMan.device);
 
     bufferMan.destroyUniformBuffers();
     bufferMan.destroyResourceDescriptor(presentMan.device);
@@ -280,7 +282,7 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = presentMan.swapChainExtent;
 
-    constexpr VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+    constexpr VkClearValue clearColor = { { {0.0f, 0.0f, 0.0f, 1.0f} } };
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
 

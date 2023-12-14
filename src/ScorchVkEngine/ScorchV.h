@@ -22,6 +22,8 @@ public:
         cleanup();
     }
 
+    bool frameBufferResized = false;
+
 private:
     #pragma region Objects
     GLFWwindow* window{};
@@ -46,7 +48,7 @@ private:
 
     BufferManager bufferMan;
 
-    GuiManager* guiMan = nullptr;
+    GuiManager* guiMan = GuiManager::getInstance();
 
     std::vector<VkCommandBuffer> commandBuffers;
 
@@ -73,7 +75,7 @@ private:
         bufferMan.setUpBufferManager(presentMan.physicalDevice, presentMan.device, instance, mesh.vertices, mesh.indices, commandPools[0], graphicsQueue);
         createCommandBuffers();
         createSyncObjects();
-        guiMan = GuiManager::getInstance(instance, presentMan, window, graphicsQueue, renderPass, bufferMan);
+        guiMan->setupImGui(instance, presentMan, window, graphicsQueue, renderPass, bufferMan);
     }
 
     void mainLoop();

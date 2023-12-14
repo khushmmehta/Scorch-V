@@ -76,7 +76,7 @@ public:
     void destroyUniformBuffers();
 
     void createImguiFontBuffer(VkDevice device, const VkImage& fontImage, VkQueue gfxQueue);
-    void destroyImguiFontBuffer(VkImage fontImage);
+    void destroyImguiFontBuffer(VkImage fontImage, VkDevice device);
 
 private:
     VmaAllocation vertexBufferAllocation{};
@@ -112,7 +112,6 @@ private:
 
         VMA.copyBuffer(device, commPool, gfxQueue, stagingBuffer, buffer, bufferSize);
 
-        vmaFlushAllocation(VMA.allocator, stagingBufferAllocation, 0, data.size());
         vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
     }
 
@@ -127,14 +126,13 @@ private:
         vmaBindImageMemory(VMA.allocator, stagingBufferAllocation, fontImage);
         void* bufferData;
         vmaMapMemory(VMA.allocator, stagingBufferAllocation, &bufferData);
-        memcpy(bufferData, fontImage, bufferSize);
+        memcpy(bufferData, stagingBufferAllocation, bufferSize);
         vmaUnmapMemory(VMA.allocator, stagingBufferAllocation);
 
         VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, imguiImageBuffer, imguiFontAllocation);
 
         VMA.copyBuffer(device, commPool, gfxQueue, stagingBuffer, imguiImageBuffer, bufferSize);
 
-        vmaFlushAllocation(VMA.allocator, stagingBufferAllocation, 0, sizeof(fontImage));
         vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
     }
 };
