@@ -30,8 +30,6 @@ void ScorchV::mainLoop()
         ImGui::ShowDemoWindow();
 
         drawFrame();
-
-        presentMan.logger();
     }
 
     vkDeviceWaitIdle(presentMan.device);

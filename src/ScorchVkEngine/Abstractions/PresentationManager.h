@@ -62,13 +62,6 @@ public:
     static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
-    void logger()
-    {
-        std::cout << swapChainSupport.capabilities.minImageExtent.width << ", " << swapChainSupport.capabilities.minImageExtent.height << "\n"
-                  << swapChainSupport.capabilities.maxImageExtent.width << ", " << swapChainSupport.capabilities.maxImageExtent.height << "\n"
-                  << swapChainExtent.width << ", " << swapChainExtent.height << "\n\n";
-    }
-
 private:
 
     std::vector<VkImage> swapChainImages;
