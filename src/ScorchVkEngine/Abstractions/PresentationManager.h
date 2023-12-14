@@ -30,6 +30,13 @@ struct SwapChainSupportDetails
 class PresentationManager
 {
 public:
+    static PresentationManager* instance;
+    static PresentationManager* getInstance()
+    {
+        if (!instance) instance = new PresentationManager();
+        return instance;
+    }
+
     GLFWwindow* ptrWindow{};
     VkSurfaceKHR surface{};
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -63,6 +70,7 @@ public:
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
 private:
+    PresentationManager() {}
 
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;

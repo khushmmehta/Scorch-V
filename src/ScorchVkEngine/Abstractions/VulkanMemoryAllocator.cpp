@@ -4,13 +4,13 @@
 #include "VulkanMemoryAllocator.h"
 #include <vma/vk_mem_alloc.h>
 
-void VulkanMemoryAllocator::createAllocator(VkPhysicalDevice physicalDevice, VkDevice device, VkInstance instance)
+void VulkanMemoryAllocator::createAllocator(VkInstance instance)
 {
 
     VmaAllocatorCreateInfo allocatorCreateInfo{};
     allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
-    allocatorCreateInfo.physicalDevice = physicalDevice;
-    allocatorCreateInfo.device = device;
+    allocatorCreateInfo.physicalDevice = presentMan->physicalDevice;
+    allocatorCreateInfo.device = presentMan->device;
     allocatorCreateInfo.instance = instance;
 
     vmaCreateAllocator(&allocatorCreateInfo, &allocator);
@@ -33,8 +33,7 @@ void VulkanMemoryAllocator::createBuffer(VkDeviceSize size, VkBufferUsageFlags u
     vmaCreateBuffer(allocator, &bufferInfo, &allocCreateInfo, &buffer, &bufferAlloc, &allocInfo);
 }
 
-void VulkanMemoryAllocator::copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue gfxQueue,
-    VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+void VulkanMemoryAllocator::copyBuffer(VkCommandPool commandPool, VkQueue gfxQueue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
 {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -43,7 +42,7 @@ void VulkanMemoryAllocator::copyBuffer(VkDevice device, VkCommandPool commandPoo
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+    vkAllocateCommandBuffers(presentMan->device, &allocInfo, &commandBuffer);
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -67,5 +66,5 @@ void VulkanMemoryAllocator::copyBuffer(VkDevice device, VkCommandPool commandPoo
     vkQueueSubmit(gfxQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(gfxQueue);
 
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    vkFreeCommandBuffers(presentMan->device, commandPool, 1, &commandBuffer);
 }

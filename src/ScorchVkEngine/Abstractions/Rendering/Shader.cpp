@@ -3,13 +3,13 @@
 #include <stdexcept>
 #include <fstream>
 
-Shader::Shader(VkDevice& device, const std::string& vert, const std::string& frag)
+Shader::Shader(const std::string& vert, const std::string& frag)
 {
     const auto vertShaderCode = readFile(vert);
     const auto fragShaderCode = readFile(frag);
 
-    vertShaderModule = createShaderModule(device, vertShaderCode);
-    fragShaderModule = createShaderModule(device, fragShaderCode);
+    vertShaderModule = createShaderModule(vertShaderCode);
+    fragShaderModule = createShaderModule(fragShaderCode);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -27,13 +27,13 @@ Shader::Shader(VkDevice& device, const std::string& vert, const std::string& fra
     shaderStages[1] = fragShaderStageInfo;
 }
 
-void Shader::destroyShader(VkDevice& device)
+void Shader::destroyShader()
 {
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    vkDestroyShaderModule(presentMan->device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(presentMan->device, vertShaderModule, nullptr);
 }
 
-VkShaderModule Shader::createShaderModule(VkDevice& device, const std::vector<char>& code)
+VkShaderModule Shader::createShaderModule(const std::vector<char>& code)
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -42,7 +42,7 @@ VkShaderModule Shader::createShaderModule(VkDevice& device, const std::vector<ch
 
     VkShaderModule shaderModule;
 
-    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    if (vkCreateShaderModule(presentMan->device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
         throw std::runtime_error("Failed to create a shader module!");
 
     return shaderModule;

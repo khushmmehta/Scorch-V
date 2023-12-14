@@ -8,6 +8,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <Abstractions/PresentationManager.h>
+
 struct Vertex
 {
     glm::vec3 pos, color;
@@ -56,6 +58,12 @@ struct UniformBufferObject
 class BufferManager
 {
 public:
+    static BufferManager* instance;
+    static BufferManager* getInstance()
+    {
+        if (!instance) instance = new BufferManager();
+        return instance;
+    }
     VkDescriptorSetLayout descriptorSetLayout{};
     std::vector<VkDescriptorSet> descriptorSets;
 
@@ -66,19 +74,23 @@ public:
     std::vector<VkBuffer> uniformBuffers;
     std::vector<void*> uniformBuffersMapped;
 
-    void createDescriptorSetLayout(VkDevice device);
-    void destroyResourceDescriptor(VkDevice device);
+    void createDescriptorSetLayout();
+    void destroyResourceDescriptor();
 
-    void setUpBufferManager(VkPhysicalDevice physicalDevice, VkDevice device, VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
+    void setUpBufferManager(VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
     void destroyBufferManager();
 
     void updateUniformBuffers(GLFWwindow* window, uint32_t currentImage);
     void destroyUniformBuffers();
 
-    void createImguiFontBuffer(VkDevice device, const VkImage& fontImage, VkQueue gfxQueue);
-    void destroyImguiFontBuffer(VkImage fontImage, VkDevice device);
+    void createImguiFontBuffer(const VkImage& fontImage, VkQueue gfxQueue);
+    void destroyImguiFontBuffer(VkImage fontImage);
 
 private:
+    BufferManager() {}
+
+    PresentationManager* presentMan = PresentationManager::getInstance();
+
     VmaAllocation vertexBufferAllocation{};
     VmaAllocation indexBufferAllocation{};
     std::vector<VmaAllocation> uniformBuffersAllocation;
@@ -87,14 +99,14 @@ private:
     VkDescriptorPool descriptorPool{};
     VkCommandPool commPool{};
 
-    void createDescriptorPool(VkDevice device);
-    void createDescriptorSets(VkDevice device);
+    void createDescriptorPool();
+    void createDescriptorSets();
 
-    void createVertexArrayObject(VkDevice device, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
+    void createVertexArrayObject(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
     void createUniformBuffers();
 
     template<typename T>
-    void createVkBuffer(VkDevice device, const std::vector<T>& data, VkBuffer& buffer, VmaAllocation& bufferAllocation, VkBufferUsageFlags usage, VkCommandPool& commandPool, VkQueue gfxQueue)
+    void createVkBuffer(const std::vector<T>& data, VkBuffer& buffer, VmaAllocation& bufferAllocation, VkBufferUsageFlags usage, VkCommandPool& commandPool, VkQueue gfxQueue)
     {
         commPool =  commandPool;
         const VkDeviceSize bufferSize = sizeof(data[0]) * data.size();
@@ -110,12 +122,12 @@ private:
 
         VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferAllocation);
 
-        VMA.copyBuffer(device, commPool, gfxQueue, stagingBuffer, buffer, bufferSize);
+        VMA.copyBuffer(commPool, gfxQueue, stagingBuffer, buffer, bufferSize);
 
         vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
     }
 
-    void createVkImGuiBuffer(VkDevice device, const VkImage& fontImage, VkImageUsageFlags usage, VkQueue gfxQueue)
+    void createVkImGuiBuffer(const VkImage& fontImage, VkImageUsageFlags usage, VkQueue gfxQueue)
     {
         constexpr VkDeviceSize bufferSize = sizeof(fontImage);
 
@@ -131,7 +143,7 @@ private:
 
         VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, imguiImageBuffer, imguiFontAllocation);
 
-        VMA.copyBuffer(device, commPool, gfxQueue, stagingBuffer, imguiImageBuffer, bufferSize);
+        VMA.copyBuffer(commPool, gfxQueue, stagingBuffer, imguiImageBuffer, bufferSize);
 
         vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
     }
