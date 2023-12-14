@@ -31,7 +31,7 @@ private:
     VkInstance instance{};
     ValidationLayers vLayers;
 
-    PresentationManager presentMan{};
+    PresentationManager* presentMan = PresentationManager::getInstance();
     QueueFamilyIndices _indices;
 
     MeshObject mesh;
@@ -46,7 +46,7 @@ private:
 
     std::vector<VkCommandPool> commandPools{};
 
-    BufferManager bufferMan;
+    BufferManager* bufferMan = BufferManager::getInstance();
 
     GuiManager* guiMan = GuiManager::getInstance();
 
@@ -65,17 +65,16 @@ private:
     {
         createInstance();
         vLayers.setupDebugMessenger(instance);
-        presentMan.setUpPresentation(instance, window, vLayers, graphicsQueue, presentQueue);
+        presentMan->setUpPresentation(instance, window, vLayers, graphicsQueue, presentQueue);
         createRenderPass();
-        bufferMan.createDescriptorSetLayout(presentMan.device);
+        bufferMan->createDescriptorSetLayout();
         createGraphicsPipeline();
-        presentMan.createFramebuffers(renderPass);
+        presentMan->createFramebuffers(renderPass);
         createCommandPools();
-        // Here is where I provide my meshdata to create their buffers
-        bufferMan.setUpBufferManager(presentMan.physicalDevice, presentMan.device, instance, mesh.vertices, mesh.indices, commandPools[0], graphicsQueue);
+        bufferMan->setUpBufferManager(instance, mesh.vertices, mesh.indices, commandPools[0], graphicsQueue);
         createCommandBuffers();
         createSyncObjects();
-        guiMan->setupImGui(instance, presentMan, window, graphicsQueue, renderPass, bufferMan);
+        guiMan->setupImGui(instance, window, graphicsQueue, renderPass);
     }
 
     void mainLoop();
@@ -88,14 +87,14 @@ private:
 
     void createVkCommandPool(VkCommandPool& commandPool, VkCommandPoolCreateFlags flags)
     {
-        const QueueFamilyIndices queueFamilyIndices = presentMan.findQueueFamilies(presentMan.physicalDevice);
+        const QueueFamilyIndices queueFamilyIndices = presentMan->findQueueFamilies(presentMan->physicalDevice);
 
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = flags;
         poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
-        if (vkCreateCommandPool(presentMan.device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+        if (vkCreateCommandPool(presentMan->device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
             throw std::runtime_error("Failed to create the command pool!");
     }
 

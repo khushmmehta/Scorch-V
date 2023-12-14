@@ -4,6 +4,8 @@
 #include <set>
 #include <string>
 
+PresentationManager* PresentationManager::instance = nullptr;
+
 void PresentationManager::setUpPresentation(VkInstance instance, GLFWwindow* window, ValidationLayers& vLayers, VkQueue& gfxQ, VkQueue& prstQ)
 {
     ptrWindow = window;
