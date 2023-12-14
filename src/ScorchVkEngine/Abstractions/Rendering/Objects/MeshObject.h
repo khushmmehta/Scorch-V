@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 #include <Abstractions/Rendering/BufferManager.h>
 
 class MeshObject
@@ -21,4 +23,7 @@ public:
 
 private:
     BufferManager* bufferMan = BufferManager::getInstance();
+    glm::vec2 pos{0.0f};
+
+    void draw(VkCommandBuffer& commandBuffer, VkPipelineLayout pipelineLayout, BufferManager bufferMan, uint32_t currentFrame);
 };
