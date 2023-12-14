@@ -1,6 +1,7 @@
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
+#include <iostream>
 #include <GLFW/glfw3.h>
 #include <optional>
 #include <vector>
@@ -59,7 +60,14 @@ public:
 
     static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
+    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
+    void logger()
+    {
+        std::cout << swapChainSupport.capabilities.minImageExtent.width << ", " << swapChainSupport.capabilities.minImageExtent.height << "\n"
+                  << swapChainSupport.capabilities.maxImageExtent.width << ", " << swapChainSupport.capabilities.maxImageExtent.height << "\n"
+                  << swapChainExtent.width << ", " << swapChainExtent.height << "\n\n";
+    }
 
 private:
 

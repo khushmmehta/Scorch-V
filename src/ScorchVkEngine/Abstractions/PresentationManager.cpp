@@ -191,6 +191,7 @@ void PresentationManager::cleanupSwapChain()
 
 void PresentationManager::recreateSwapChain(VkRenderPass renderPass)
 {
+    swapChainSupport = querySwapChainSupport(physicalDevice);
     int width(0), height(0);
     glfwGetFramebufferSize(ptrWindow, &width, &height);
     while (width == 0 || height == 0)
@@ -347,7 +348,7 @@ VkPresentModeKHR PresentationManager::chooseSwapPresentMode(const std::vector<Vk
 
     return VK_PRESENT_MODE_FIFO_KHR;
 }
-VkExtent2D PresentationManager::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const
+VkExtent2D PresentationManager::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities)
 {
     // The number below is the maximum numeric limit for a uint32_t
     if (capabilities.currentExtent.width != 4294967295) return capabilities.currentExtent;
