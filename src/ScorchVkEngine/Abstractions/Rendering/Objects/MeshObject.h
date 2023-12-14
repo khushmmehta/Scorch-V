@@ -8,10 +8,10 @@ class MeshObject
 {
 public:
     const std::vector<Vertex> vertices = {
-        { { -10.0f,  10.0f, 0 }, { 1.0f, 0.0f, 0.0f }, { -1.0f,  1.0f } },
-        { {  10.0f,  10.0f, 0 }, { 0.0f, 1.0f, 0.0f }, {  1.0f,  1.0f } },
-        { {  10.0f, -10.0f, 0 }, { 0.0f, 0.0f, 1.0f }, {  1.0f, -1.0f } },
-        { { -10.0f, -10.0f, 0 }, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f } },
+        { { -10.0f,  10.0f, 0 }, { 0.4f, 0.0f, 1.0f }, { -1.0f,  1.0f } },
+        { {  10.0f,  10.0f, 0 }, { 0.4f, 0.0f, 1.0f }, {  1.0f,  1.0f } },
+        { {  10.0f, -10.0f, 0 }, { 0.4f, 0.0f, 1.0f }, {  1.0f, -1.0f } },
+        { { -10.0f, -10.0f, 0 }, { 0.4f, 0.0f, 1.0f }, { -1.0f, -1.0f } },
     };
 
     const std::vector<uint16_t> indices = {
@@ -19,11 +19,10 @@ public:
         2, 3, 0,
     };
 
+    glm::vec2 pos = {0.0f, 0.0f};
+
     void draw(VkCommandBuffer& commandBuffer, VkPipelineLayout pipelineLayout, uint32_t currentFrame);
 
 private:
     BufferManager* bufferMan = BufferManager::getInstance();
-    glm::vec2 pos{0.0f};
-
-    void draw(VkCommandBuffer& commandBuffer, VkPipelineLayout pipelineLayout, BufferManager bufferMan, uint32_t currentFrame);
 };

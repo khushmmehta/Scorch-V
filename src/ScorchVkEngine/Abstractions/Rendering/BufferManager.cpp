@@ -129,10 +129,10 @@ void BufferManager::destroyImguiFontBuffer(VkImage fontImage)
     vmaFreeMemory(VMA.allocator, imguiFontAllocation);
 }
 
-void BufferManager::updateUniformBuffers(GLFWwindow* window, uint32_t currentImage)
+void BufferManager::updateUniformBuffers(GLFWwindow* window, uint32_t currentImage, glm::vec3 pos)
 {
     UniformBufferObject ubo{};
-    ubo.model = translate(glm::mat4(1.0f), glm::vec3(0.0f));
+    ubo.model = translate(glm::mat4(1.0f), pos);
     ubo.view = translate(glm::mat4(1.0f), glm::vec3(0.0f));
 
     int width, height;

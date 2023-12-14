@@ -28,6 +28,7 @@ void ScorchV::mainLoop()
         guiMan->newFrame();
 
         ImGui::Text("Frame Interval: %.3f \nFPS: %.1f", 1000 / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::SliderFloat("Mesh X Position", &mesh.pos.x, -100.0f, 100.0f);
 
         drawFrame();
     }
@@ -304,9 +305,9 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
         scissor.extent = presentMan->swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        mesh.draw(commandBuffer, pipelineLayout, currentFrame);
+    mesh.draw(commandBuffer, pipelineLayout, currentFrame);
 
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -348,7 +349,7 @@ void ScorchV::drawFrame()
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         throw std::runtime_error("Failed to acquire swap chain image!");
 
-    bufferMan->updateUniformBuffers(window, currentFrame);
+    bufferMan->updateUniformBuffers(window, currentFrame, {mesh.pos, 0.0f});
 
     vkResetFences(presentMan->device, 1, &inFlightFences[currentFrame]);
 

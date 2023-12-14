@@ -80,7 +80,7 @@ public:
     void setUpBufferManager(VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
     void destroyBufferManager();
 
-    void updateUniformBuffers(GLFWwindow* window, uint32_t currentImage);
+    void updateUniformBuffers(GLFWwindow* window, uint32_t currentImage, glm::vec3 pos);
     void destroyUniformBuffers();
 
     void createImguiFontBuffer(const VkImage& fontImage, VkQueue gfxQueue);
