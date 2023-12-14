@@ -9,6 +9,7 @@
 #include <Abstractions/PresentationManager.h>
 #include <Abstractions/Rendering/BufferManager.h>
 #include <Abstractions/Rendering/Objects/MeshObject.h>
+#include <Abstractions/GuiManager.h>
 
 class ScorchV
 {
@@ -20,6 +21,8 @@ public:
         mainLoop();
         cleanup();
     }
+
+    bool frameBufferResized = false;
 
 private:
     #pragma region Objects
@@ -44,6 +47,8 @@ private:
     std::vector<VkCommandPool> commandPools{};
 
     BufferManager bufferMan;
+
+    GuiManager* guiMan = GuiManager::getInstance();
 
     std::vector<VkCommandBuffer> commandBuffers;
 
@@ -70,6 +75,7 @@ private:
         bufferMan.setUpBufferManager(presentMan.physicalDevice, presentMan.device, instance, mesh.vertices, mesh.indices, commandPools[0], graphicsQueue);
         createCommandBuffers();
         createSyncObjects();
+        guiMan->setupImGui(instance, presentMan, window, graphicsQueue, renderPass, bufferMan);
     }
 
     void mainLoop();

@@ -24,6 +24,11 @@ void ScorchV::mainLoop()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+
+        guiMan->newFrame();
+
+        ImGui::ShowDemoWindow();
+
         drawFrame();
     }
 
@@ -33,6 +38,7 @@ void ScorchV::mainLoop()
 void ScorchV::cleanup()
 {
     presentMan.cleanupSwapChain();
+    guiMan->destroyImGui(presentMan.device);
 
     bufferMan.destroyUniformBuffers();
     bufferMan.destroyResourceDescriptor(presentMan.device);
@@ -276,7 +282,7 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = presentMan.swapChainExtent;
 
-    constexpr VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+    constexpr VkClearValue clearColor = { { {0.0f, 0.0f, 0.0f, 1.0f} } };
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
 
@@ -299,6 +305,8 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         mesh.draw(commandBuffer, pipelineLayout, bufferMan, currentFrame);
+
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -349,6 +357,9 @@ void ScorchV::drawFrame()
     vkResetFences(presentMan.device, 1, &inFlightFences[currentFrame]);
 
     vkResetCommandPool(presentMan.device, commandPools[currentFrame], 0);
+
+    ImGui::Render();
+
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
     VkSubmitInfo submitInfo{};

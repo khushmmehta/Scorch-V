@@ -116,6 +116,18 @@ void BufferManager::createUniformBuffers()
     }
 }
 
+void BufferManager::createImguiFontBuffer(VkDevice device, const VkImage& fontImage, VkQueue gfxQueue)
+{
+    createVkImGuiBuffer(device, fontImage, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, gfxQueue);
+}
+
+void BufferManager::destroyImguiFontBuffer(VkImage fontImage, VkDevice device)
+{
+    vkDestroyImage(device, fontImage, nullptr);
+    vkDestroyBuffer(device, imguiImageBuffer, nullptr);
+    vmaFreeMemory(VMA.allocator, imguiFontAllocation);
+}
+
 void BufferManager::updateUniformBuffers(GLFWwindow* window, uint32_t currentImage)
 {
     UniformBufferObject ubo{};

@@ -62,6 +62,7 @@ public:
     VulkanMemoryAllocator VMA;
     VkBuffer vertexBuffer{};
     VkBuffer indexBuffer{};
+    VkBuffer imguiImageBuffer{};
     std::vector<VkBuffer> uniformBuffers;
     std::vector<void*> uniformBuffersMapped;
 
@@ -74,12 +75,17 @@ public:
     void updateUniformBuffers(GLFWwindow* window, uint32_t currentImage);
     void destroyUniformBuffers();
 
+    void createImguiFontBuffer(VkDevice device, const VkImage& fontImage, VkQueue gfxQueue);
+    void destroyImguiFontBuffer(VkImage fontImage, VkDevice device);
+
 private:
     VmaAllocation vertexBufferAllocation{};
     VmaAllocation indexBufferAllocation{};
     std::vector<VmaAllocation> uniformBuffersAllocation;
+    VmaAllocation imguiFontAllocation{};
 
     VkDescriptorPool descriptorPool{};
+    VkCommandPool commPool{};
 
     void createDescriptorPool(VkDevice device);
     void createDescriptorSets(VkDevice device);
@@ -90,6 +96,7 @@ private:
     template<typename T>
     void createVkBuffer(VkDevice device, const std::vector<T>& data, VkBuffer& buffer, VmaAllocation& bufferAllocation, VkBufferUsageFlags usage, VkCommandPool& commandPool, VkQueue gfxQueue)
     {
+        commPool =  commandPool;
         const VkDeviceSize bufferSize = sizeof(data[0]) * data.size();
 
         VkBuffer stagingBuffer;
@@ -103,9 +110,29 @@ private:
 
         VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferAllocation);
 
-        VMA.copyBuffer(device, commandPool, gfxQueue, stagingBuffer, buffer, bufferSize);
+        VMA.copyBuffer(device, commPool, gfxQueue, stagingBuffer, buffer, bufferSize);
 
-        vmaFlushAllocation(VMA.allocator, stagingBufferAllocation, 0, data.size());
+        vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
+    }
+
+    void createVkImGuiBuffer(VkDevice device, const VkImage& fontImage, VkImageUsageFlags usage, VkQueue gfxQueue)
+    {
+        constexpr VkDeviceSize bufferSize = sizeof(fontImage);
+
+        VkBuffer stagingBuffer;
+        VmaAllocation stagingBufferAllocation;
+        VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferAllocation);
+
+        vmaBindImageMemory(VMA.allocator, stagingBufferAllocation, fontImage);
+        void* bufferData;
+        vmaMapMemory(VMA.allocator, stagingBufferAllocation, &bufferData);
+        memcpy(bufferData, stagingBufferAllocation, bufferSize);
+        vmaUnmapMemory(VMA.allocator, stagingBufferAllocation);
+
+        VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, imguiImageBuffer, imguiFontAllocation);
+
+        VMA.copyBuffer(device, commPool, gfxQueue, stagingBuffer, imguiImageBuffer, bufferSize);
+
         vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
     }
 };

@@ -115,6 +115,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL ValidationLayers::debugCallback(
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData)
 {
-    fmt::print(err, "Validation Layer: {}\n", pCallbackData->pMessage);
+    fmt::print(fmterr, "Validation Layer: {}\n", pCallbackData->pMessage);
     return VK_FALSE;
 }

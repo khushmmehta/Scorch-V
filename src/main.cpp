@@ -6,7 +6,7 @@ int main() {
     ScorchV app;
 
     try { app.run(); }
-    catch (const std::exception& e) { fmt::print(err, "{}", e.what()); return EXIT_FAILURE; }
+    catch (const std::exception& e) { fmt::print(fmterr, "{}", e.what()); return EXIT_FAILURE; }
 
     getchar();
 
