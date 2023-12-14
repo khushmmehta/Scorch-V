@@ -3,7 +3,9 @@
 
 #include <stdexcept>
 
-void BufferManager::createDescriptorSetLayout(VkDevice device)
+BufferManager* BufferManager::instance = nullptr;
+
+void BufferManager::createDescriptorSetLayout()
 {
     VkDescriptorSetLayoutBinding uboLayoutBinding{};
     uboLayoutBinding.binding = 0;
@@ -17,17 +19,17 @@ void BufferManager::createDescriptorSetLayout(VkDevice device)
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &uboLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
+    if (vkCreateDescriptorSetLayout(presentMan->device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create a descriptor set layout!");
 }
 
-void BufferManager::destroyResourceDescriptor(VkDevice device)
+void BufferManager::destroyResourceDescriptor()
 {
-    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    vkDestroyDescriptorPool(presentMan->device, descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(presentMan->device, descriptorSetLayout, nullptr);
 }
 
-void BufferManager::createDescriptorPool(VkDevice device)
+void BufferManager::createDescriptorPool()
 {
     VkDescriptorPoolSize poolSize{};
     poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -39,11 +41,11 @@ void BufferManager::createDescriptorPool(VkDevice device)
     poolInfo.pPoolSizes = &poolSize;
     poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+    if (vkCreateDescriptorPool(presentMan->device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
         throw std::runtime_error("Failed to create a descriptor pool!");
 }
 
-void BufferManager::createDescriptorSets(VkDevice device)
+void BufferManager::createDescriptorSets()
 {
     const std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
     VkDescriptorSetAllocateInfo allocInfo{};
@@ -53,7 +55,7 @@ void BufferManager::createDescriptorSets(VkDevice device)
     allocInfo.pSetLayouts = layouts.data();
 
     descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS)
+    if (vkAllocateDescriptorSets(presentMan->device, &allocInfo, descriptorSets.data()) != VK_SUCCESS)
         throw std::runtime_error("Failed to allocate descriptor sets!");
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -72,19 +74,18 @@ void BufferManager::createDescriptorSets(VkDevice device)
         descriptorWrite.descriptorCount = 1;
         descriptorWrite.pBufferInfo = &bufferInfo;
 
-        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+        vkUpdateDescriptorSets(presentMan->device, 1, &descriptorWrite, 0, nullptr);
     }
 }
 
-void BufferManager::setUpBufferManager(VkPhysicalDevice physicalDevice, VkDevice device, VkInstance instance,
-    const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue)
+void BufferManager::setUpBufferManager(VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue)
 {
-    VMA.createAllocator(physicalDevice, device, instance);
-    createVertexArrayObject(device, vertices, indices, commandPool, gfxQueue);
+    VMA.createAllocator(instance);
+    createVertexArrayObject(vertices, indices, commandPool, gfxQueue);
     createUniformBuffers();
 
-    createDescriptorPool(device);
-    createDescriptorSets(device);
+    createDescriptorPool();
+    createDescriptorSets();
 }
 
 void BufferManager::destroyBufferManager()
@@ -95,10 +96,10 @@ void BufferManager::destroyBufferManager()
     vmaDestroyAllocator(VMA.allocator);
 }
 
-void BufferManager::createVertexArrayObject(VkDevice device, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue)
+void BufferManager::createVertexArrayObject(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue)
 {
-    createVkBuffer<Vertex>(device, vertices, vertexBuffer, vertexBufferAllocation, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, commandPool, gfxQueue);
-    createVkBuffer<uint16_t>(device, indices, indexBuffer, indexBufferAllocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, commandPool, gfxQueue);
+    createVkBuffer<Vertex>(vertices, vertexBuffer, vertexBufferAllocation, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, commandPool, gfxQueue);
+    createVkBuffer<uint16_t>(indices, indexBuffer, indexBufferAllocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, commandPool, gfxQueue);
 }
 
 void BufferManager::createUniformBuffers()
@@ -116,15 +117,15 @@ void BufferManager::createUniformBuffers()
     }
 }
 
-void BufferManager::createImguiFontBuffer(VkDevice device, const VkImage& fontImage, VkQueue gfxQueue)
+void BufferManager::createImguiFontBuffer(const VkImage& fontImage, VkQueue gfxQueue)
 {
-    createVkImGuiBuffer(device, fontImage, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, gfxQueue);
+    createVkImGuiBuffer(fontImage, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, gfxQueue);
 }
 
-void BufferManager::destroyImguiFontBuffer(VkImage fontImage, VkDevice device)
+void BufferManager::destroyImguiFontBuffer(VkImage fontImage)
 {
-    vkDestroyImage(device, fontImage, nullptr);
-    vkDestroyBuffer(device, imguiImageBuffer, nullptr);
+    vkDestroyImage(presentMan->device, fontImage, nullptr);
+    vkDestroyBuffer(presentMan->device, imguiImageBuffer, nullptr);
     vmaFreeMemory(VMA.allocator, imguiFontAllocation);
 }
 

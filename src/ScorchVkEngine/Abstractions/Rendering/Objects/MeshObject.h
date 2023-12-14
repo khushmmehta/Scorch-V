@@ -17,5 +17,8 @@ public:
         2, 3, 0,
     };
 
-    void draw(VkCommandBuffer& commandBuffer, VkPipelineLayout pipelineLayout, BufferManager bufferMan, uint32_t currentFrame);
+    void draw(VkCommandBuffer& commandBuffer, VkPipelineLayout pipelineLayout, uint32_t currentFrame);
+
+private:
+    BufferManager* bufferMan = BufferManager::getInstance();
 };

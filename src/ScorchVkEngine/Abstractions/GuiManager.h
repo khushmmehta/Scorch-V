@@ -1,32 +1,34 @@
+// ReSharper disable CppUnusedIncludeDirective
 #pragma once
 
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_vulkan.h>
+#include <imgui/backends/imgui_impl_glfw.h>
 #include <Abstractions/Rendering/BufferManager.h>
 #include <Abstractions/PresentationManager.h>
 
 class GuiManager
 {
-private:
-    GuiManager() {}
-
 public:
-    static GuiManager* guiInstance;
+    static GuiManager* instance;
     static GuiManager* getInstance()
     {
-        if (!guiInstance) guiInstance = new GuiManager();
-        return guiInstance;
+        if (!instance) instance = new GuiManager();
+        return instance;
     }
 
     VkImage fontImage{};
 
-    void setupImGui(VkInstance instance, PresentationManager presentMan, GLFWwindow* window,
-                    VkQueue graphicsQueue, VkRenderPass renderPass, BufferManager& bufferMan);
-    void destroyImGui(VkDevice device);
+    void setupImGui(VkInstance instance, GLFWwindow* window, VkQueue graphicsQueue, VkRenderPass renderPass);
+    void destroyImGui();
 
     static void newFrame();
+    static void renderGui();
 
 private:
-    BufferManager buffMan;
+    GuiManager() {}
+
+    PresentationManager* presentMan = PresentationManager::getInstance();
+    BufferManager* bufferMan = BufferManager::getInstance();
     VkDescriptorPool imguiPool{};
 };

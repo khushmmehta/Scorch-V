@@ -2,14 +2,12 @@
 
 #include <iterator>
 #include <stdexcept>
-#include <imgui/backends/imgui_impl_glfw.h>
 
-GuiManager* GuiManager::guiInstance = nullptr;
+GuiManager* GuiManager::instance = nullptr;
 
-void GuiManager::setupImGui(VkInstance instance, PresentationManager presentMan, GLFWwindow* window, VkQueue graphicsQueue, VkRenderPass renderPass, BufferManager& bufferMan)
+void GuiManager::setupImGui(VkInstance instance, GLFWwindow* window, VkQueue graphicsQueue, VkRenderPass renderPass)
 {
-    buffMan = bufferMan;
-    VkDescriptorPoolSize pool_sizes[] =
+    const VkDescriptorPoolSize pool_sizes[] =
     {
     { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
     { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -30,25 +28,30 @@ void GuiManager::setupImGui(VkInstance instance, PresentationManager presentMan,
     pool_info.poolSizeCount = std::size(pool_sizes);
     pool_info.pPoolSizes = pool_sizes;
 
-    vkCreateDescriptorPool(presentMan.device, &pool_info, nullptr, &imguiPool);
+    vkCreateDescriptorPool(presentMan->device, &pool_info, nullptr, &imguiPool);
 
     ImGuiContext* imguiContext = ImGui::CreateContext();
     ImGui::SetCurrentContext(imguiContext);
 
-    const ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Navigation Flags
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Navigation Flags
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Use Docking Branch
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
 
     ImGui_ImplVulkan_InitInfo initInfo = {};
     initInfo.Instance = instance;
-    initInfo.PhysicalDevice = presentMan.physicalDevice;
-    initInfo.Device = presentMan.device;
+    initInfo.PhysicalDevice = presentMan->physicalDevice;
+    initInfo.Device = presentMan->device;
     initInfo.Queue = graphicsQueue;
     initInfo.DescriptorPool = imguiPool;
     initInfo.MinImageCount = 3;
     initInfo.ImageCount = 3;
 
     ImGui_ImplVulkan_Init(&initInfo, renderPass);
+
+    io.Fonts->AddFontFromFileTTF("..\\res\\fonts\\SpaceMono-Regular.ttf", 20.0f);
 
     unsigned char* fontData;
     int texWidth, texHeight;
@@ -69,20 +72,89 @@ void GuiManager::setupImGui(VkInstance instance, PresentationManager presentMan,
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 
-    if (vkCreateImage(presentMan.device, &imageInfo, nullptr, &fontImage) != VK_SUCCESS)
+    if (vkCreateImage(presentMan->device, &imageInfo, nullptr, &fontImage) != VK_SUCCESS)
         throw std::runtime_error("Failed to create ImGui font image!");
 
-    buffMan.createImguiFontBuffer(presentMan.device, fontImage, graphicsQueue);
+    bufferMan->createImguiFontBuffer(fontImage, graphicsQueue);
 
     io.Fonts->TexID = reinterpret_cast<ImTextureID>(fontImage);
+
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    style.Colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    style.Colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    style.Colors[ImGuiCol_WindowBg]               = ImVec4(0.12f, 0.11f, 0.13f, 0.59f);
+    style.Colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    style.Colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 0.59f);
+    style.Colors[ImGuiCol_Border]                 = ImVec4(0.20f, 0.19f, 0.22f, 0.78f);
+    style.Colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    style.Colors[ImGuiCol_FrameBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.78f);
+    style.Colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.32f, 0.31f, 0.32f, 0.59f);
+    style.Colors[ImGuiCol_FrameBgActive]          = ImVec4(0.40f, 0.40f, 0.40f, 0.59f);
+    style.Colors[ImGuiCol_TitleBg]                = ImVec4(1.00f, 0.39f, 0.00f, 0.59f);
+    style.Colors[ImGuiCol_TitleBgActive]          = ImVec4(1.00f, 0.39f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.00f, 0.00f, 0.00f, 0.59f);
+    style.Colors[ImGuiCol_MenuBarBg]              = ImVec4(0.12f, 0.11f, 0.13f, 1.00f);
+    style.Colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.00f, 0.00f, 0.00f, 0.59f);
+    style.Colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+    style.Colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
+    style.Colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+    style.Colors[ImGuiCol_CheckMark]              = ImVec4(1.00f, 0.39f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_SliderGrab]             = ImVec4(1.00f, 0.39f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.72f, 0.29f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_Button]                 = ImVec4(1.00f, 0.47f, 0.00f, 0.59f);
+    style.Colors[ImGuiCol_ButtonHovered]          = ImVec4(1.00f, 0.39f, 0.00f, 0.78f);
+    style.Colors[ImGuiCol_ButtonActive]           = ImVec4(1.00f, 0.39f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_Header]                 = ImVec4(1.00f, 0.39f, 0.00f, 0.31f);
+    style.Colors[ImGuiCol_HeaderHovered]          = ImVec4(1.00f, 0.39f, 0.00f, 0.80f);
+    style.Colors[ImGuiCol_HeaderActive]           = ImVec4(1.00f, 0.39f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_Separator]              = ImVec4(1.00f, 0.39f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_SeparatorHovered]       = ImVec4(1.00f, 0.39f, 0.00f, 0.78f);
+    style.Colors[ImGuiCol_SeparatorActive]        = ImVec4(1.00f, 0.39f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_ResizeGrip]             = ImVec4(1.00f, 0.39f, 0.00f, 0.20f);
+    style.Colors[ImGuiCol_ResizeGripHovered]      = ImVec4(1.00f, 0.39f, 0.00f, 0.59f);
+    style.Colors[ImGuiCol_ResizeGripActive]       = ImVec4(1.00f, 0.39f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_Tab]                    = ImVec4(1.00f, 0.39f, 0.00f, 0.39f);
+    style.Colors[ImGuiCol_TabHovered]             = ImVec4(0.32f, 0.31f, 0.32f, 0.78f);
+    style.Colors[ImGuiCol_TabActive]              = ImVec4(0.12f, 0.11f, 0.13f, 1.00f);
+    style.Colors[ImGuiCol_TabUnfocused]           = ImVec4(0.59f, 0.20f, 0.00f, 0.59f);
+    style.Colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(1.00f, 0.39f, 0.00f, 0.59f);
+    style.Colors[ImGuiCol_DockingPreview]         = ImVec4(0.26f, 0.59f, 0.98f, 0.70f);
+    style.Colors[ImGuiCol_DockingEmptyBg]         = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+    style.Colors[ImGuiCol_PlotLines]              = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
+    style.Colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
+    style.Colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
+    style.Colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
+    style.Colors[ImGuiCol_TableBorderLight]       = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
+    style.Colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    style.Colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+    style.Colors[ImGuiCol_TextSelectedBg]         = ImVec4(1.00f, 0.39f, 0.00f, 0.39f);
+    style.Colors[ImGuiCol_DragDropTarget]         = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
+    style.Colors[ImGuiCol_NavHighlight]           = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+    style.Colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+    style.Colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+    style.Colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+
+    style.WindowRounding = 8;
+    style.ChildRounding = 4;
+    style.PopupRounding = 4;
+    style.GrabRounding = 4;
+    style.FrameRounding = 4;
+    style.ScrollbarRounding = 4;
+    style.TabRounding = 4;
+
+    style.FrameBorderSize = 1;
+    style.SeparatorTextBorderSize = 1;
 }
 
-void GuiManager::destroyImGui(VkDevice device)
+void GuiManager::destroyImGui()
 {
-    buffMan.destroyImguiFontBuffer(fontImage, device);
+    bufferMan->destroyImguiFontBuffer(fontImage);
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
-    vkDestroyDescriptorPool(device, imguiPool, nullptr);
+    vkDestroyDescriptorPool(presentMan->device, imguiPool, nullptr);
     ImGui::DestroyContext();
 }
 
@@ -93,3 +165,7 @@ void GuiManager::newFrame()
     ImGui::NewFrame();
 }
 
+void GuiManager::renderGui()
+{
+    ImGui::Render();
+}
