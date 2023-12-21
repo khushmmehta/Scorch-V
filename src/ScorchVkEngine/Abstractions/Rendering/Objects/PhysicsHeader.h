@@ -1,5 +1,5 @@
 #pragma once
-#include <Windows.h>
+
 #include <glm/glm.hpp>
 
 struct RigidBody

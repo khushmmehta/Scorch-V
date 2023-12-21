@@ -18,12 +18,13 @@ void ScorchV::initWindow()
     window = glfwCreateWindow(WIDTH, HEIGHT, "Scorch-V", nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, presentMan->framebufferResizeCallback);
+    glfwSwapInterval(1);
 }
 
 void ScorchV::mainLoop()
 {
-    rBodies.reserve(10000);
-    vertInstances.reserve(10000);
+    rBodies.reserve(100000);
+    vertInstances.reserve(100000);
 
     float currTime = 0;
 
@@ -39,7 +40,7 @@ void ScorchV::mainLoop()
         static auto lastSpawnTime = currentTime;
         const auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastSpawnTime).count();
 
-        if (elapsedTime >= 100 && ImGui::GetIO().Framerate > 59)
+        if (elapsedTime >= 20 && rBodies.size() < 1500)
         {
             RigidBody newBody;
             newBody.currPos = {  0.00f,  0.00f };

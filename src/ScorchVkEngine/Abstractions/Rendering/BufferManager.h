@@ -7,6 +7,7 @@
 #include <Abstractions/VulkanMemoryAllocator.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <cstring>
 
 #include <Abstractions/PresentationManager.h>
 
