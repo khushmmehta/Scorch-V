@@ -9,6 +9,7 @@
 #include <Abstractions/PresentationManager.h>
 #include <Abstractions/Rendering/BufferManager.h>
 #include <Abstractions/Rendering/Objects/MeshObject.h>
+#include <Abstractions\Rendering\Objects\PhysicsHeader.h>
 #include <Abstractions/GuiManager.h>
 
 class ScorchV
@@ -35,6 +36,8 @@ private:
     QueueFamilyIndices _indices;
 
     MeshObject mesh;
+    std::vector<RigidBody> rBodies{1};
+    std::vector<VertexInstance> vertInstances{1};
 
     VkQueue graphicsQueue{};
     VkQueue presentQueue{};
@@ -71,7 +74,7 @@ private:
         createGraphicsPipeline();
         presentMan->createFramebuffers(renderPass);
         createCommandPools();
-        bufferMan->setUpBufferManager(instance, mesh.vertices, mesh.indices, commandPools[0], graphicsQueue);
+        bufferMan->setUpBufferManager(instance, mesh.vertices, mesh.indices, vertInstances, commandPools[0], graphicsQueue);
         createCommandBuffers();
         createSyncObjects();
         guiMan->setupImGui(instance, window, graphicsQueue, renderPass);

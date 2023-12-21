@@ -25,9 +25,9 @@ struct Vertex
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescription()
+    static std::vector<VkVertexInputAttributeDescription> getAttributeDescription()
     {
-        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{3};
 
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
@@ -43,6 +43,33 @@ struct Vertex
         attributeDescriptions[2].location = 2;
         attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
         attributeDescriptions[2].offset = offsetof(Vertex, uv);
+
+        return attributeDescriptions;
+    }
+};
+
+struct VertexInstance
+{
+    glm::vec3 modelPos;
+
+    static VkVertexInputBindingDescription getBindingDescription()
+    {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 1;
+        bindingDescription.stride = sizeof(VertexInstance);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
+        return bindingDescription;
+    }
+
+    static std::vector<VkVertexInputAttributeDescription> getAttributeDescription()
+    {
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{1};
+
+        attributeDescriptions[0].binding = 1;
+        attributeDescriptions[0].location = 3;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(VertexInstance, modelPos);
 
         return attributeDescriptions;
     }
@@ -70,6 +97,8 @@ public:
     VulkanMemoryAllocator VMA;
     VkBuffer vertexBuffer{};
     VkBuffer indexBuffer{};
+    VkBuffer instanceBuffer{};
+    void* instanceBufferMapped{};
     VkBuffer imguiImageBuffer{};
     std::vector<VkBuffer> uniformBuffers;
     std::vector<void*> uniformBuffersMapped;
@@ -77,11 +106,15 @@ public:
     void createDescriptorSetLayout();
     void destroyResourceDescriptor();
 
-    void setUpBufferManager(VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue);
+    void setUpBufferManager(VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, const std::vector<VertexInstance>& instances, VkCommandPool& commandPool, VkQueue gfxQueue);
     void destroyBufferManager();
 
-    void updateUniformBuffers(GLFWwindow* window, uint32_t currentImage, glm::vec3 pos);
+    void updateUniformBuffers(GLFWwindow* window, uint32_t currentImage);
     void destroyUniformBuffers();
+
+    void createInstanceBuffers(const std::vector<VertexInstance>& instances, VkCommandPool& commandPool, VkQueue gfxQueue);
+    void updateInstanceBuffers(const std::vector<VertexInstance>& instances);
+    void destroyInstanceBuffers();
 
     void createImguiFontBuffer(const VkImage& fontImage, VkQueue gfxQueue);
     void destroyImguiFontBuffer(VkImage fontImage);
@@ -93,6 +126,7 @@ private:
 
     VmaAllocation vertexBufferAllocation{};
     VmaAllocation indexBufferAllocation{};
+    VmaAllocation instanceBufferAllocation{};
     std::vector<VmaAllocation> uniformBuffersAllocation;
     VmaAllocation imguiFontAllocation{};
 

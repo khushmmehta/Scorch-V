@@ -196,11 +196,7 @@ void PresentationManager::recreateSwapChain(VkRenderPass renderPass)
     swapChainSupport = querySwapChainSupport(physicalDevice);
     int width(0), height(0);
     glfwGetFramebufferSize(ptrWindow, &width, &height);
-    while (width == 0 || height == 0)
-    {
-        glfwGetFramebufferSize(ptrWindow, &width, &height);
-        glfwWaitEvents();
-    }
+    if (width == 0 || height == 0) return;
 
     vkDeviceWaitIdle(device);
 

@@ -8,8 +8,6 @@
 #ifndef FMT_CORE_H_
 #define FMT_CORE_H_
 
-#define fmterr __acrt_iob_func(2)
-
 #include <cstddef>  // std::byte
 #include <cstdio>   // std::FILE
 #include <cstring>  // std::strlen
@@ -18,6 +16,8 @@
 #include <memory>  // std::addressof
 #include <string>
 #include <type_traits>
+
+#define fmterr stderr
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
 #define FMT_VERSION 100101

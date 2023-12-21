@@ -8,5 +8,5 @@ layout(location = 0) out vec4 outColor;
 void main()
 {
 	float uvDistance = v_UV.x * v_UV.x + v_UV.y * v_UV.y;
-	outColor = vec4(fragColor, 1 - smoothstep(0.975, 1, uvDistance));
+	outColor = vec4(fragColor, 1 - step(1, uvDistance));
 }

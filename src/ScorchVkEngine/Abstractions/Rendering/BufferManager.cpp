@@ -2,6 +2,7 @@
 #include "BufferManager.h"
 
 #include <stdexcept>
+#include <vma/vk_mem_alloc.h>
 
 BufferManager* BufferManager::instance = nullptr;
 
@@ -78,10 +79,11 @@ void BufferManager::createDescriptorSets()
     }
 }
 
-void BufferManager::setUpBufferManager(VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, VkCommandPool& commandPool, VkQueue gfxQueue)
+void BufferManager::setUpBufferManager(VkInstance instance, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices, const std::vector<VertexInstance>& instances, VkCommandPool& commandPool, VkQueue gfxQueue)
 {
     VMA.createAllocator(instance);
     createVertexArrayObject(vertices, indices, commandPool, gfxQueue);
+    createInstanceBuffers(instances, commandPool, gfxQueue);
     createUniformBuffers();
 
     createDescriptorPool();
@@ -129,11 +131,11 @@ void BufferManager::destroyImguiFontBuffer(VkImage fontImage)
     vmaFreeMemory(VMA.allocator, imguiFontAllocation);
 }
 
-void BufferManager::updateUniformBuffers(GLFWwindow* window, uint32_t currentImage, glm::vec3 pos)
+void BufferManager::updateUniformBuffers(GLFWwindow* window, uint32_t currentImage)
 {
     UniformBufferObject ubo{};
-    ubo.model = translate(glm::mat4(1.0f), pos);
-    ubo.view = translate(glm::mat4(1.0f), glm::vec3(0.0f));
+    ubo.model = translate(glm::mat4(1.0f), glm::vec3(0.0f));
+    ubo.view =  translate(glm::mat4(1.0f), glm::vec3(0.0f));
 
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
@@ -154,4 +156,38 @@ void BufferManager::destroyUniformBuffers()
         vmaUnmapMemory(VMA.allocator, uniformBuffersAllocation[i]);
         vmaDestroyBuffer(VMA.allocator, uniformBuffers[i], uniformBuffersAllocation[i]);
     }
+}
+
+void BufferManager::createInstanceBuffers(const std::vector<VertexInstance>& instances, VkCommandPool& commandPool, VkQueue gfxQueue)
+{
+    commPool =  commandPool;
+    const VkDeviceSize bufferSize = sizeof(VertexInstance) * instances.size();
+
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingBufferAllocation;
+    VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferAllocation);
+
+    void* bufferData;
+    vmaMapMemory(VMA.allocator, stagingBufferAllocation, &bufferData);
+    memcpy(bufferData, instances.data(), bufferSize);
+    vmaUnmapMemory(VMA.allocator, stagingBufferAllocation);
+
+    VMA.createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, instanceBuffer, instanceBufferAllocation);
+
+    VMA.copyBuffer(commPool, gfxQueue, stagingBuffer, instanceBuffer, bufferSize);
+
+    vmaDestroyBuffer(VMA.allocator, stagingBuffer, stagingBufferAllocation);
+
+    vmaMapMemory(VMA.allocator, instanceBufferAllocation, &instanceBufferMapped);
+}
+
+void BufferManager::updateInstanceBuffers(const std::vector<VertexInstance>& instances)
+{
+    memcpy(instanceBufferMapped, instances.data(), sizeof(VertexInstance) * instances.size());
+}
+
+void BufferManager::destroyInstanceBuffers()
+{
+    vmaUnmapMemory(VMA.allocator, instanceBufferAllocation);
+    vmaDestroyBuffer(VMA.allocator, instanceBuffer, instanceBufferAllocation);
 }

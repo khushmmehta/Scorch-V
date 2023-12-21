@@ -2,6 +2,7 @@
 #include "ScorchV.h"
 
 #include <stdexcept>
+#include <chrono>
 
 #include <Abstractions/Rendering/Shader.h>
 
@@ -21,14 +22,40 @@ void ScorchV::initWindow()
 
 void ScorchV::mainLoop()
 {
+    rBodies.reserve(10000);
+    vertInstances.reserve(10000);
+
+    float currTime = 0;
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
 
+        const float prevTime = currTime;
+        currTime = static_cast<float>(glfwGetTime());
+        const float deltaTime = currTime - prevTime;
+
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        static auto lastSpawnTime = currentTime;
+        const auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastSpawnTime).count();
+
+        if (elapsedTime >= 100 && ImGui::GetIO().Framerate > 59)
+        {
+            RigidBody newBody;
+            newBody.currPos = {  0.00f,  0.00f };
+            newBody.prevPos = { -0.10f, -0.05f };
+
+            lastSpawnTime = currentTime;
+
+            rBodies.emplace_back(newBody);
+        }
+
+        Physics::Update(rBodies, deltaTime);
+
         guiMan->newFrame();
 
         ImGui::Text("Frame Interval: %.3f \nFPS: %.1f", 1000 / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::SliderFloat("Mesh X Position", &mesh.pos.x, -100.0f, 100.0f);
+        ImGui::Text("%.u", static_cast<uint32_t>(rBodies.size()));
 
         drawFrame();
     }
@@ -42,6 +69,7 @@ void ScorchV::cleanup()
     guiMan->destroyImGui();
 
     bufferMan->destroyUniformBuffers();
+    bufferMan->destroyInstanceBuffers();
     bufferMan->destroyResourceDescriptor();
     bufferMan->destroyBufferManager();
 
@@ -77,7 +105,7 @@ void ScorchV::createInstance()
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Scorch-V";
-    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 12);
+    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 13);
     appInfo.pEngineName = "Scorch Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
@@ -141,13 +169,15 @@ void ScorchV::createGraphicsPipeline()
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescription = Vertex::getAttributeDescription();
+    std::vector<VkVertexInputBindingDescription> bindingDescription = {Vertex::getBindingDescription(), VertexInstance::getBindingDescription()};
+    std::vector<VkVertexInputAttributeDescription> attributeDescription;
 
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    for (auto attrib : Vertex::getAttributeDescription()) attributeDescription.push_back(attrib);
+    for (auto attrib : VertexInstance::getAttributeDescription()) attributeDescription.push_back(attrib);
 
+    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescription.size());
+    vertexInputInfo.pVertexBindingDescriptions = bindingDescription.data();
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescription.size());
-    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescription.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -289,23 +319,23 @@ void ScorchV::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageI
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(presentMan->swapChainExtent.width);
-        viewport.height = static_cast<float>(presentMan->swapChainExtent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(presentMan->swapChainExtent.width);
+    viewport.height = static_cast<float>(presentMan->swapChainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-        VkRect2D scissor{};
-        scissor.offset = {0, 0};
-        scissor.extent = presentMan->swapChainExtent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = presentMan->swapChainExtent;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    mesh.draw(commandBuffer, pipelineLayout, currentFrame);
+    mesh.draw(commandBuffer, vertInstances.size(), pipelineLayout, currentFrame);
 
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 
@@ -349,7 +379,20 @@ void ScorchV::drawFrame()
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         throw std::runtime_error("Failed to acquire swap chain image!");
 
-    bufferMan->updateUniformBuffers(window, currentFrame, {mesh.pos, 0.0f});
+    if (vertInstances.size() != rBodies.size())
+    {
+        vertInstances.resize(rBodies.size());
+
+        vkDeviceWaitIdle(presentMan->device);
+
+        bufferMan->destroyInstanceBuffers();
+        bufferMan->createInstanceBuffers(vertInstances, commandPools[0], graphicsQueue);
+    }
+
+    for (size_t i = 0; i < rBodies.size(); i++) vertInstances[i].modelPos = glm::vec3(rBodies[i].currPos, 0.0f);
+
+    bufferMan->updateInstanceBuffers(vertInstances);
+    bufferMan->updateUniformBuffers(window, currentFrame);
 
     vkResetFences(presentMan->device, 1, &inFlightFences[currentFrame]);
 

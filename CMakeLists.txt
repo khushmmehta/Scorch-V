@@ -37,8 +37,11 @@ set(SOURCE_FILES src/main.cpp
         src/vendor/imgui/backends/imgui_impl_glfw.h
         src/vendor/imgui/backends/imgui_impl_vulkan.cpp
         src/vendor/imgui/backends/imgui_impl_vulkan.h
+
         src/ScorchVkEngine/Abstractions/GuiManager.cpp
-        src/ScorchVkEngine/Abstractions/GuiManager.h)
+        src/ScorchVkEngine/Abstractions/GuiManager.h
+
+        src/ScorchVkEngine/Abstractions/Rendering/Objects/PhysicsHeader.h)
 
 include_directories(GLFW)
 include_directories(GLFW/include)
@@ -54,10 +57,11 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan glfw3)
-
 if (MSVC)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan glfw3)
+
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
     target_compile_options(${PROJECT_NAME} PRIVATE /permissive-)
-    target_compile_options(${PROJECT_NAME} PRIVATE /MP)
+else ()
+    target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan -lglfw)
 endif ()
