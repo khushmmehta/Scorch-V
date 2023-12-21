@@ -40,7 +40,7 @@ void ScorchV::mainLoop()
         static auto lastSpawnTime = currentTime;
         const auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastSpawnTime).count();
 
-        if (elapsedTime >= 20 && rBodies.size() < 1500)
+        if (elapsedTime >= 20 && ImGui::GetIO().Framerate > 59)
         {
             RigidBody newBody;
             newBody.currPos = {  0.00f,  0.00f };
@@ -106,9 +106,9 @@ void ScorchV::createInstance()
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Scorch-V";
-    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 13);
+    appInfo.applicationVersion = VK_MAKE_VERSION(0, 2, 0);
     appInfo.pEngineName = "Scorch Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
+    appInfo.engineVersion = VK_MAKE_VERSION(0, 2, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo{};
