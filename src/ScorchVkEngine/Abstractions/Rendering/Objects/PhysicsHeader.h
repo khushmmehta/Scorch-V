@@ -20,8 +20,16 @@ struct RigidBody
     }
 
     void accelerate(const glm::vec2 acc){ acceleration += acc; }
+};
 
-    bool operator==(const RigidBody& body2) const { return this->currPos == body2.currPos; }
+struct Grid
+{
+    int width{50}, height{30};
+    std::vector<std::vector<RigidBody*>> cells;
+
+    Grid() { cells.resize(width * height); }
+
+    void assignToCell(RigidBody* obj, float x, float y) { cells[floor(x + 50) + floor(-y + 50) * width].push_back(obj); }
 };
 
 namespace Physics
@@ -31,19 +39,34 @@ namespace Physics
 
     constexpr glm::vec2 gravity = { 0.0f, -50.0f };
 
-    constexpr float boundsX{66.0f}, boundsY{34.0f};
+    constexpr float boundsX{50.0f}, boundsY{30.0f};
 
-    inline void Update(std::vector<RigidBody>& rBodies, const float deltaTime)
+    inline void SolveCollisions(RigidBody* body1, RigidBody* body2)
     {
-        const float subDeltaTime = deltaTime * 0.125f; // [ deltaTime / 8 ] Can Be Written As [ deltaTime * 0.125f ]
+        const glm::vec2 collisionAxis = body1->currPos - body2->currPos;
+        const float squareDistance = collisionAxis.x * collisionAxis.x + collisionAxis.y * collisionAxis.y;
+
+        if (squareDistance < (rad + rad) * (rad + rad))
+        {
+            const float distance =  sqrtf(squareDistance);
+            const glm::vec2 n = collisionAxis / distance;
+            const float delta = rad + rad - distance;
+            body1->currPos += 0.5f * delta * n;
+            body2->currPos -= 0.5f * delta * n;
+        }
+    }
+
+    inline void Update(std::vector<RigidBody>& rBodies, Grid& grid, const float deltaTime)
+    {
+        const float subDeltaTime = deltaTime * 0.125f;
 
         for (uint32_t ss = subSteps; ss--;)
         {
+            // Bounding Box & Acceleration
             for (RigidBody& body : rBodies)
             {
                 body.accelerate(gravity);
 
-                // Set Bounding Box
                 if (fabs(body.currPos.x) > boundsX - rad)
                     body.currPos.x > 0 ? body.currPos.x *= (boundsX - rad) / body.currPos.x : body.currPos.x *= (boundsX - rad) / -body.currPos.x;
                 if (fabs(body.currPos.y) > boundsY - rad)
@@ -51,26 +74,9 @@ namespace Physics
             }
 
             // Body Collision Solver
-            const uint32_t bodyCount = rBodies.size();
-            for (uint32_t i = 0; i < bodyCount; ++i)
-            {
-                RigidBody& body1 = rBodies[i];
-                for (uint32_t k = i + 1; k < bodyCount; ++k)
-                {
-                    RigidBody& body2 = rBodies[k];
-                    const glm::vec2 collisionAxis = body1.currPos - body2.currPos;
-                    const float squareDistance = collisionAxis.x * collisionAxis.x + collisionAxis.y * collisionAxis.y;
-
-                    if (squareDistance < (rad + rad) * (rad + rad))
-                    {
-                        const float distance =  sqrtf(squareDistance);
-                        const glm::vec2 n = collisionAxis / distance;
-                        const float delta = rad + rad - distance;
-                        body1.currPos += 0.5f * delta * n;
-                        body2.currPos -= 0.5f * delta * n;
-                    }
-                }
-            }
+            for (RigidBody& body1 : rBodies)
+                for (RigidBody& body2 : rBodies)
+                    SolveCollisions(&body1, &body2);
 
             // Apply Updated Position
             for (RigidBody& body : rBodies) body.updatePos(subDeltaTime);

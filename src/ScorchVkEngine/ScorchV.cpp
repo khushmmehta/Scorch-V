@@ -6,8 +6,10 @@
 
 #include <Abstractions/Rendering/Shader.h>
 
-constexpr uint32_t WIDTH = 800;
+constexpr uint32_t WIDTH = 1000;
 constexpr uint32_t HEIGHT = 600;
+
+Grid grid;
 
 void ScorchV::initWindow()
 {
@@ -51,7 +53,7 @@ void ScorchV::mainLoop()
             rBodies.emplace_back(newBody);
         }
 
-        Physics::Update(rBodies, deltaTime);
+        Physics::Update(rBodies, grid, deltaTime);
 
         guiMan->newFrame();
 
