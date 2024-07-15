@@ -1,4 +1,5 @@
 #define FMT_HEADER_ONLY
+
 #include <fmt/core.h>
 #include <ScorchV.h>
 

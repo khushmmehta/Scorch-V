@@ -1,7 +1,10 @@
 #pragma once
+
 #define GLFW_INCLUDE_VULKAN
 #define GLM_FORCE_RADIANS
+
 #include <vector>
+#include <algorithm>
 
 #include <GLFW/glfw3.h>
 
@@ -36,7 +39,9 @@ private:
     QueueFamilyIndices _indices;
 
     MeshObject mesh;
-    std::vector<RigidBody> rBodies{1};
+    std::vector<RigidBody> rBodies = { { {0.00f, 30.0f}, {-0.1f, 30.0f} } };
+    std::vector<RigidBody*> rbPointers;
+
     std::vector<VertexInstance> vertInstances{1};
 
     VkQueue graphicsQueue{};
@@ -79,7 +84,6 @@ private:
         createSyncObjects();
         guiMan->setupImGui(instance, window, graphicsQueue, renderPass);
     }
-
     void mainLoop();
     void cleanup();
 
@@ -99,6 +103,11 @@ private:
 
         if (vkCreateCommandPool(presentMan->device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
             throw std::runtime_error("Failed to create the command pool!");
+    }
+
+    void SortBodies()
+    {
+        std::sort(rBodies.begin(), rBodies.end(), [](RigidBody& b1, RigidBody& b2) { return b1.currPos.x < b2.currPos.x; });
     }
 
     void createCommandBuffers();

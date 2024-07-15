@@ -1,10 +1,13 @@
 #define MAX_FRAMES_IN_FLIGHT 2
+#define FMT_HEADER_ONLY
 #include "ScorchV.h"
 
 #include <stdexcept>
 #include <chrono>
 
 #include <Abstractions/Rendering/Shader.h>
+
+#include <fmt/core.h>
 
 constexpr uint32_t WIDTH = 800;
 constexpr uint32_t HEIGHT = 600;
@@ -26,7 +29,12 @@ void ScorchV::mainLoop()
     rBodies.reserve(100000);
     vertInstances.reserve(100000);
 
+    rbPointers.reserve(100000);
+    rbPointers.emplace_back(&rBodies[0]);
+
     float currTime = 0;
+
+    Physics::Grid grid{128, 72, 1};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -36,22 +44,14 @@ void ScorchV::mainLoop()
         currTime = static_cast<float>(glfwGetTime());
         const float deltaTime = currTime - prevTime;
 
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        static auto lastSpawnTime = currentTime;
-        const auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastSpawnTime).count();
-
-        if (elapsedTime >= 20 && ImGui::GetIO().Framerate > 59)
+        if (ImGui::GetIO().Framerate > 59)
         {
-            RigidBody newBody;
-            newBody.currPos = {  0.00f,  0.00f };
-            newBody.prevPos = { -0.10f, -0.05f };
-
-            lastSpawnTime = currentTime;
-
+            RigidBody newBody{ { 0.00f, 30.0f}, { -0.1f, 30.0f} };
             rBodies.emplace_back(newBody);
+            rbPointers.emplace_back(&rBodies.back());
         }
 
-        Physics::Update(rBodies, deltaTime);
+        Physics::Update(rbPointers, grid, deltaTime);
 
         guiMan->newFrame();
 
